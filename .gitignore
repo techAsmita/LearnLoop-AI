@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+*.db
+.pytest_cache/
+.mypy_cache/
+learnloop*.db
+
+# Node
+node_modules/
+.next/
+out/
+.env.local
+.env*.local
+npm-debug.log*
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build
+dist/
+build/
+*.zip
+
+*.tsbuildinfo
