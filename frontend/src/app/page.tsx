@@ -1967,34 +1967,34 @@ export default function HomePage() {
                   <span className="absolute bottom-2 right-2 w-2 h-2 rounded-full bg-[var(--success)] border-2 border-[var(--surface)]" />
                 </div>
 
-                {/* TITLE */}
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[12px] uppercase tracking-[0.18em] font-extrabold text-[var(--primary)]">
-                      Learner intelligence
-                    </p>
-
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
-
-                    <span className="text-[12px] font-semibold text-[var(--text-muted)]">
-                      Adaptive mode
-                    </span>
-                  </div>
-
-                  <h1 className="text-3xl lg:text-4xl font-extrabold text-[var(--text)] mt-2 tracking-[-0.04em]">
-                    Welcome back. 👋
-                  </h1>
-
-                  <p className="text-base lg:text-lg font-bold text-[var(--text-secondary)] mt-1">
-                    Oracle is learning how you learn.
+                              {/* TITLE */}
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-[12px] uppercase tracking-[0.18em] font-extrabold text-[var(--primary)]">
+                    Learner intelligence
                   </p>
 
-                  <p className="text-sm text-[var(--text-muted)] mt-2 max-w-xl leading-relaxed">
-                    LearnLoop continuously updates your learner model from
-                    answers, reasoning, confidence, and intervention outcomes.
-                  </p>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
+
+                  <span className="text-[12px] font-semibold text-[var(--text-muted)]">
+                    Adaptive mode
+                  </span>
                 </div>
+
+                <h1 className="text-3xl lg:text-4xl font-extrabold text-[var(--text)] mt-2 tracking-[-0.04em]">
+                  Welcome back 👋
+                </h1>
+
+                <p className="text-base lg:text-lg font-extrabold text-[var(--text)] mt-2">
+                  Oracle is learning how you learn.
+                </p>
+
+                <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-xl leading-relaxed">
+                  LearnLoop continuously updates your learner model from
+                  answers, reasoning, confidence, and intervention outcomes.
+                </p>
               </div>
+            </div>
 
               {/* ORACLE INSIGHT */}
               <div className="xl:max-w-[390px] w-full">
@@ -3086,12 +3086,12 @@ export default function HomePage() {
             </div>
           </section>
 
-          <footer className="border-t border-[var(--border)] mt-10 pt-6 pb-8 text-center">
-            <p className="text-[12px] text-[var(--text-muted)]">
+                    <footer className="border-t border-[var(--border)] mt-10 pt-7 pb-9 text-center">
+            <p className="text-[13px] font-semibold tracking-[0.01em] text-[var(--text-secondary)]">
               LearnLoop AI · RudraCore · Build Fast with AI 2026 · PS-03
             </p>
 
-            <p className="text-[11px] text-[var(--text-muted)] mt-1">
+            <p className="text-[12px] text-[var(--text-muted)] mt-2">
               Most tutors know the subject. LearnLoop learns the learner.
             </p>
           </footer>

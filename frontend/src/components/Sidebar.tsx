@@ -205,15 +205,15 @@ export function Sidebar({
 }`}
     >
       {/* BRAND */}
-      <div
-       className={`h-[72px] flex items-center ${
-  collapsed ? "px-4" : "px-4"
-}`}
+            <div
+        className={`h-[96px] flex items-center ${
+          collapsed ? "px-4" : "px-4"
+        }`}
       >
         <button
           onClick={() => onNavigate("overview")}
-          className={`flex items-center ${
-            collapsed ? "justify-center" : "gap-3"
+                    className={`flex items-center justify-center ${
+            collapsed ? "" : "gap-3 translate-y-1"
           } w-full`}
           title={collapsed ? "LearnLoop AI" : undefined}
         >
@@ -300,10 +300,10 @@ export function Sidebar({
                   )}
                 </button>
 
-                {/* COLLAPSED TOOLTIP */}
+                                {/* COLLAPSED TOOLTIP */}
                 {collapsed && (
-                  <div className="pointer-events-none absolute left-[64px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 translate-x-[-4px] group-hover:translate-x-0 transition-all duration-150 z-50">
-                    <div className="whitespace-nowrap rounded-lg bg-[var(--text)] text-[var(--surface)] text-[11px] font-bold px-3 py-2 shadow-xl border border-[var(--border)]">
+                  <div className="pointer-events-none absolute left-[56px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-150 z-50">
+                    <div className="whitespace-nowrap rounded-lg bg-[#17172b] text-white text-[11px] font-bold px-3 py-2 shadow-xl">
                       {item.label}
                     </div>
                   </div>
@@ -322,12 +322,12 @@ export function Sidebar({
 >
         {/* LEARNER TWIN */}
         {!collapsed ? (
-          <div className="rounded-[20px] bg-[var(--surface-soft)] border border-[var(--primary-border)] p-4 shadow-[0_10px_30px_rgba(99,91,255,0.06)]">
-            <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center mb-3 text-[var(--primary)]">
+                    <div className="rounded-[20px] bg-[var(--surface-soft)] border border-[var(--primary-border)] p-4 shadow-[0_10px_30px_rgba(99,91,255,0.06)] text-center">
+            <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center mx-auto mb-3 text-[var(--primary)]">
               <BrainIcon className="w-[19px] h-[19px]" />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2">
               <p className="text-[13px] font-extrabold text-[var(--text)]">
                 Learner Twin
               </p>
@@ -341,14 +341,13 @@ export function Sidebar({
             </p>
           </div>
         ) : (
-          <div className="relative group flex justify-center">
-            <button
-              onClick={() => onNavigate("progress")}
+                    <div className="relative group flex justify-center">
+            <div
               className="w-10 h-10 rounded-xl bg-[var(--surface-soft)] border border-[var(--primary-border)] flex items-center justify-center text-[var(--primary)] shadow-sm"
               aria-label="Learner Twin"
             >
               <BrainIcon className="w-[19px] h-[19px]" />
-            </button>
+            </div>
 
             <div className="pointer-events-none absolute left-[56px] top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-150 z-50">
               <div className="whitespace-nowrap rounded-lg bg-[var(--text)] text-[var(--surface)] text-[11px] font-bold px-3 py-2 shadow-xl">

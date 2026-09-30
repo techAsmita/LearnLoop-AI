@@ -184,7 +184,7 @@ border-[var(--shell-divider-soft)]
             <ThemeToggle />
           </div>
 
-          {/* HOME */}
+                    {/* HOME */}
           <div className="relative group hidden sm:block">
             <button
               type="button"
@@ -219,28 +219,14 @@ border-[var(--shell-divider-soft)]
                 top-[calc(100%+10px)]
                 left-1/2
                 -translate-x-1/2
-                translate-y-[-3px]
                 opacity-0
                 group-hover:opacity-100
-                group-hover:translate-y-0
                 transition-all
                 duration-150
                 z-50
               "
             >
-              <div
-                className="
-                  whitespace-nowrap
-                  rounded-lg
-                  bg-[#17172b]
-                  px-3
-                  py-2
-                  text-[11px]
-                  font-semibold
-                  text-white
-                  shadow-xl
-                "
-              >
+              <div className="whitespace-nowrap rounded-lg bg-[#17172b] text-white text-[11px] font-bold px-3 py-2 shadow-xl">
                 Go to overview
               </div>
             </div>
@@ -256,7 +242,7 @@ border-[var(--shell-divider-soft)]
                 justify-center
                 w-11
                 h-11
-                                rounded-full
+                rounded-full
                 bg-[var(--primary-soft)]
                 border
                 border-[var(--primary-border)]
@@ -280,28 +266,14 @@ border-[var(--shell-divider-soft)]
                 absolute
                 top-[calc(100%+10px)]
                 right-0
-                translate-y-[-3px]
                 opacity-0
                 group-hover:opacity-100
-                group-hover:translate-y-0
                 transition-all
                 duration-150
                 z-50
               "
             >
-              <div
-                className="
-                  whitespace-nowrap
-                  rounded-lg
-                  bg-[#17172b]
-                  px-3
-                  py-2
-                  text-[11px]
-                  font-semibold
-                  text-white
-                  shadow-xl
-                "
-              >
+              <div className="whitespace-nowrap rounded-lg bg-[#17172b] text-white text-[11px] font-bold px-3 py-2 shadow-xl">
                 Learner profile
               </div>
             </div>

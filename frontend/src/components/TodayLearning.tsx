@@ -29,9 +29,13 @@ export function TodayLearning({
 
   const selectedConcept = concept ?? concepts[0];
 
-  const selectedState = selectedConcept
+    const selectedState = selectedConcept
     ? stateMap.get(selectedConcept.id)
     : undefined;
+
+  const hasLearnerEvidence = states.some(
+    (state) => state.attempt_count > 0
+  );
 
   return (
     <div className="app-card p-6 h-full">
@@ -104,11 +108,13 @@ export function TodayLearning({
             </div>
           </div>
 
-          <button
+                    <button
             onClick={() => onStart(selectedConcept.id)}
             className="primary-button w-full mt-4 py-3 rounded-xl text-xs font-bold"
           >
-            Continue learning →
+            {hasLearnerEvidence
+              ? "Continue learning →"
+              : "Start diagnostic →"}
           </button>
         </>
       ) : (
