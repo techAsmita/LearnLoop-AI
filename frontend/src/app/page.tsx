@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 
 import type {
@@ -165,42 +165,130 @@ export default function HomePage() {
   const [reConfidence, setReConfidence] = useState(0.5);
 
   const [demoScenario, setDemoScenario] = useState<string>("");
-  const [learnerId, setLearnerId] = useState<string | null>(null);
+const [learnerId, setLearnerId] = useState<string | null>(null);
 
-  /* ---------- INITIAL LOAD ---------- */
+const sessionHydrated = useRef(false);
+
+/* ---------- INITIAL LOAD ---------- */
 
   useEffect(() => {
-    const savedLearner =
-      typeof window !== "undefined"
-        ? localStorage.getItem("learnloop_learner_id")
-        : null;
+  const savedLearner =
+    typeof window !== "undefined"
+      ? localStorage.getItem("learnloop_learner_id")
+      : null;
 
-    if (savedLearner) {
-      setLearnerId(savedLearner);
-      refreshLearner(savedLearner);
+  if (savedLearner) {
+    setLearnerId(savedLearner);
+    refreshLearner(savedLearner);
+  }
+
+  const savedSession =
+    typeof window !== "undefined"
+      ? localStorage.getItem("learnloop_active_session")
+      : null;
+
+  if (savedSession) {
+    try {
+      const restored = JSON.parse(savedSession);
+
+      if (restored?.session) {
+        setScreen(restored.screen ?? "dashboard");
+        setSession(restored.session ?? null);
+        setDiagnosis(restored.diagnosis ?? null);
+        setIntervention(restored.intervention ?? null);
+        setReassessResult(restored.reassessResult ?? null);
+
+        setAnswer(restored.answer ?? "");
+        setReasoning(restored.reasoning ?? "");
+        setConfidence(
+          typeof restored.confidence === "number"
+            ? restored.confidence
+            : 0.5
+        );
+
+        setReAnswer(restored.reAnswer ?? "");
+        setReReasoning(restored.reReasoning ?? "");
+        setReConfidence(
+          typeof restored.reConfidence === "number"
+            ? restored.reConfidence
+            : 0.5
+        );
+
+        setDemoScenario(restored.demoScenario ?? "");
+        setLearnerId(restored.learnerId ?? savedLearner ?? null);
+      }
+    } catch {
+      localStorage.removeItem("learnloop_active_session");
     }
+  }
 
-    api
-      .listConcepts()
-      .then((data) => {
-        setConcepts(data);
-        setBackendConnected(true);
-      })
-      .catch((e) => {
-        setError(String(e));
-        setBackendConnected(false);
-      });
+  sessionHydrated.current = true;
 
-    api
-      .health()
-      .then((health) => {
-        setMockMode(health.mock_mode);
-        setBackendConnected(true);
-      })
-      .catch(() => {
-        setBackendConnected(false);
-      });
-  }, []);
+  api
+    .listConcepts()
+    .then((data) => {
+      setConcepts(data);
+      setBackendConnected(true);
+    })
+    .catch((e) => {
+      setError(String(e));
+      setBackendConnected(false);
+    });
+
+  api
+    .health()
+    .then((health) => {
+      setMockMode(health.mock_mode);
+      setBackendConnected(true);
+    })
+    .catch(() => {
+      setBackendConnected(false);
+    });
+}, []);
+
+useEffect(() => {
+  if (!sessionHydrated.current) return;
+
+  if (!session) {
+    localStorage.removeItem("learnloop_active_session");
+    return;
+  }
+
+  const snapshot = {
+    screen,
+    session,
+    diagnosis,
+    intervention,
+    reassessResult,
+    answer,
+    reasoning,
+    confidence,
+    reAnswer,
+    reReasoning,
+    reConfidence,
+    demoScenario,
+    learnerId,
+  };
+
+  localStorage.setItem(
+    "learnloop_active_session",
+    JSON.stringify(snapshot)
+  );
+}, [
+  screen,
+  session,
+  diagnosis,
+  intervention,
+  reassessResult,
+  answer,
+  reasoning,
+  confidence,
+  reAnswer,
+  reReasoning,
+  reConfidence,
+  demoScenario,
+  learnerId,
+]);
 
   async function refreshLearner(id?: string) {
     const target = id ?? learnerId;
@@ -453,6 +541,8 @@ export default function HomePage() {
           mockMode={mockMode}
           onHome={() => navigate("overview")}
           sidebarCollapsed={sidebarCollapsed}
+          concepts={concepts}
+          onSearchConcept={startLearning}
         />
 
           <main className="w-full max-w-[1380px] mx-auto px-5 lg:px-8 xl:px-10 py-8">
@@ -1931,11 +2021,13 @@ export default function HomePage() {
           sidebarCollapsed ? "lg:ml-[76px]" : "lg:ml-[238px]"
         }`}
       >
-                <TopBar
+                                <TopBar
           backendConnected={backendConnected}
           mockMode={mockMode}
           onHome={() => navigate("overview")}
           sidebarCollapsed={sidebarCollapsed}
+          concepts={concepts}
+          onSearchConcept={startLearning}
         />
 
         <main className="max-w-[1450px] mx-auto px-5 lg:px-9 py-8">

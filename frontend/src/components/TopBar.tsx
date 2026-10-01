@@ -1,12 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+
+interface SearchConcept {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 interface Props {
   backendConnected: boolean | null;
   mockMode: boolean;
   onHome: () => void;
   sidebarCollapsed: boolean;
+  concepts: SearchConcept[];
+  onSearchConcept: (conceptId: string) => void;
 }
 
 function SearchIcon() {
@@ -47,7 +56,39 @@ export function TopBar({
   mockMode,
   onHome,
   sidebarCollapsed,
+  concepts,
+  onSearchConcept,
 }: Props) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const searchResults =
+    normalizedQuery.length > 0
+      ? concepts
+          .filter((concept) => {
+            const haystack = [concept.name, concept.description ?? ""]
+              .join(" ")
+              .toLowerCase();
+
+            return haystack.includes(normalizedQuery);
+          })
+          .slice(0, 5)
+      : [];
+
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return;
+
+    const firstMatch = searchResults[0];
+
+    if (firstMatch) {
+      onSearchConcept(firstMatch.id);
+      setSearchQuery("");
+      setSearchOpen(false);
+    }
+  };
+
   return (
     <header
       className="
@@ -58,7 +99,7 @@ export function TopBar({
         bg-[color-mix(in_srgb,var(--bg)_88%,transparent)]
         backdrop-blur-xl
         border-b
-border-[var(--shell-divider-soft)]
+        border-[var(--shell-divider-soft)]
       "
     >
       <div className="h-full flex items-center justify-between px-5 lg:px-7">
@@ -86,10 +127,7 @@ border-[var(--shell-divider-soft)]
           </button>
 
           <span className="font-extrabold text-sm text-[var(--text)]">
-            LearnLoop{" "}
-            <span className="text-[var(--primary)]">
-              AI
-            </span>
+            LearnLoop <span className="text-[var(--primary)]">AI</span>
           </span>
         </div>
 
@@ -101,6 +139,25 @@ border-[var(--shell-divider-soft)]
             </span>
 
             <input
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSearchOpen(true);
+              }}
+              onFocus={() => {
+                if (searchQuery.trim()) {
+                  setSearchOpen(true);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSearch();
+                }
+
+                if (e.key === "Escape") {
+                  setSearchOpen(false);
+                }
+              }}
               className="
                 w-[290px]
                 h-10
@@ -111,7 +168,7 @@ border-[var(--shell-divider-soft)]
                 pl-9
                 pr-4
                 text-xs
-                text-[var(--text-secondary)]
+                text-[var(--text)]
                 outline-none
                 focus:border-[var(--primary-border)]
                 focus:ring-2
@@ -121,6 +178,47 @@ border-[var(--shell-divider-soft)]
               placeholder="Search concepts, progress..."
               aria-label="Search concepts and progress"
             />
+
+            {searchOpen && normalizedQuery && (
+              <div className="absolute top-[calc(100%+8px)] left-0 w-[290px] rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-xl overflow-hidden z-50">
+                {searchResults.length > 0 ? (
+                  <div className="py-1">
+                    {searchResults.map((concept) => (
+                      <button
+                        key={concept.id}
+                        type="button"
+                        onClick={() => {
+                          onSearchConcept(concept.id);
+                          setSearchQuery("");
+                          setSearchOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2.5 hover:bg-[var(--primary-soft)] transition"
+                      >
+                        <p className="text-xs font-bold text-[var(--text)]">
+                          {concept.name}
+                        </p>
+
+                        {concept.description && (
+                          <p className="text-[10px] text-[var(--text-muted)] mt-0.5 truncate">
+                            {concept.description}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-3 py-3">
+                    <p className="text-xs font-bold text-[var(--text)]">
+                      No matching concepts
+                    </p>
+
+                    <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                      Try a concept such as Overfitting or Gradient Descent.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -128,30 +226,30 @@ border-[var(--shell-divider-soft)]
         <div className="flex items-center gap-2.5 h-full">
           {/* CONNECTION STATUS */}
           {backendConnected === true && (
-  <div
-    className="
-      hidden
-      sm:flex
-      items-center
-      justify-center
-      gap-2
-      h-11
-      px-3.5
-      rounded-xl
-      bg-[color-mix(in_srgb,var(--success)_12%,transparent)]
-      border
-      border-[color-mix(in_srgb,var(--success)_28%,transparent)]
-      text-[#278968]
-      dark:text-[var(--success)]
-      text-[10px]
-      font-bold
-      whitespace-nowrap
-    "
-  >
-    <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
-    {mockMode ? "Backend connected" : "AI connected"}
-  </div>
-)}
+            <div
+              className="
+                hidden
+                sm:flex
+                items-center
+                justify-center
+                gap-2
+                h-11
+                px-3.5
+                rounded-xl
+                bg-[color-mix(in_srgb,var(--success)_12%,transparent)]
+                border
+                border-[color-mix(in_srgb,var(--success)_28%,transparent)]
+                text-[#278968]
+                dark:text-[var(--success)]
+                text-[10px]
+                font-bold
+                whitespace-nowrap
+              "
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
+              {mockMode ? "Backend connected" : "AI connected"}
+            </div>
+          )}
 
           {backendConnected === false && (
             <div
@@ -164,7 +262,7 @@ border-[var(--shell-divider-soft)]
                 h-11
                 px-3.5
                 rounded-xl
-                                bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]
+                bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]
                 border
                 border-[color-mix(in_srgb,var(--danger)_28%,transparent)]
                 text-[#c44f68]
@@ -174,7 +272,7 @@ border-[var(--shell-divider-soft)]
                 whitespace-nowrap
               "
             >
-                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)]" />
               Offline
             </div>
           )}
@@ -184,7 +282,7 @@ border-[var(--shell-divider-soft)]
             <ThemeToggle />
           </div>
 
-                    {/* HOME */}
+          {/* HOME */}
           <div className="relative group hidden sm:block">
             <button
               type="button"
