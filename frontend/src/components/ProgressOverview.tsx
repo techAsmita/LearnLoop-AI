@@ -414,12 +414,12 @@ export function ProgressOverview({ states }: Props) {
               </span>
 
               <span className="absolute bottom-3 left-3 text-[8px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Needs support
-              </span>
+  Lower confidence · lower mastery
+</span>
 
               <span className="absolute bottom-3 right-3 text-[8px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Confidence gap
-              </span>
+  High confidence · lower mastery
+</span>
 
               {/* POINTS */}
               {assessedStates.map((state, index) => {
@@ -461,7 +461,7 @@ export function ProgressOverview({ states }: Props) {
 
                         <p className="text-[9px] text-white/70 mt-0.5">
                           Mastery {clampPercent(state.mastery)}% · Confidence{" "}
-                          {clampPercent(state.confidence)}%
+{clampPercent(state.confidence)}%
                         </p>
                       </div>
                     </div>
