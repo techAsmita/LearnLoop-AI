@@ -30,6 +30,20 @@ function getConceptDisplayName(conceptId: string) {
   return names[conceptId] ?? conceptId.replaceAll("_", " ");
 }
 
+function formatInterventionType(value?: string | null) {
+  if (!value) return "Next step";
+
+  const labels: Record<string, string> = {
+    foundational_explanation: "Foundational Explanation",
+    targeted_misconception: "Targeted Misconception",
+    guided_example: "Guided Example",
+    reinforcement: "Reinforcement",
+    practice_challenge: "Practice Challenge",
+  };
+
+  return labels[value] ?? value.replaceAll("_", " ");
+}
+
 function getMasteryTone(mastery: number) {
   if (mastery >= 0.75) {
     return {
@@ -563,11 +577,8 @@ export function ProgressOverview({ states }: Props) {
 
                       <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
                         {state.last_intervention_type
-                          ? `Next strategy: ${state.last_intervention_type.replaceAll(
-                              "_",
-                              " "
-                            )}`
-                          : "Awaiting intervention evidence"}
+  ? `Next strategy: ${formatInterventionType(state.last_intervention_type)}`
+  : "Awaiting intervention evidence"}
                       </p>
                     </div>
                   </div>

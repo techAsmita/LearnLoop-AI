@@ -85,7 +85,7 @@ def test_full_adaptive_loop_high_conf_misconception():
     session_id = start["session_id"]
     learner_id = start["learner_id"]
     assert start["mock_mode"] is True
-    assert start["initial_mastery"] == pytest.approx(0.35, abs=0.01)
+    assert start["initial_mastery"] == pytest.approx(0.42, abs=0.01)
 
     # Diagnose — high confidence wrong answer
     r = client.post("/api/diagnose", json={

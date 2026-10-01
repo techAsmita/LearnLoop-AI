@@ -325,7 +325,8 @@ async def diagnose(payload: DiagnoseRequest, db: Session = Depends(get_db)):
         "misconception_confidence": float(
             diagnosis_data.get("misconception_confidence") or 0
         ),
-        "mastery_after": new_mastery,
+                "mastery_after": new_mastery,
+        "intervention_type": diagnosis_data["recommended_intervention_type"],
         "policy_rule": diagnosis_data.get("policy_rule"),
     },
 )
@@ -434,17 +435,53 @@ async def get_intervention(
         else None
     )
 
-    # ---------------------------------------------------------
-    # Determine intervention type.
+        # ---------------------------------------------------------
+    # Recover the latest diagnosis decision.
     #
-    # If the caller explicitly provides a type, respect it.
-    # Otherwise let the learner policy choose adaptively.
+    # The intervention must use the same learner evidence and
+    # policy decision produced during diagnosis. Re-running the
+    # policy from partial state can produce contradictory
+    # interventions between Analysis and Personalized Intervention.
     # ---------------------------------------------------------
+    latest_diagnosis = None
+
+    for event in reversed(state.history or []):
+        if event.get("event") == "diagnosis":
+            latest_diagnosis = event
+            break
+    # Freeze the intervention to the learner state produced
+    # by the latest diagnosis. This prevents a later state
+    # mutation from changing the explanation shown for this step.
+    diagnosis_mastery = (
+        float(latest_diagnosis.get("mastery_after"))
+        if latest_diagnosis is not None
+        and latest_diagnosis.get("mastery_after") is not None
+        else state.mastery
+    )
+
+    diagnosis_confidence = (
+        float(latest_diagnosis.get("confidence"))
+        if latest_diagnosis is not None
+        and latest_diagnosis.get("confidence") is not None
+        else state.confidence
+    )
+    # If the caller explicitly provides a type, respect it.
+    # Otherwise use the exact intervention selected during diagnosis.
     intervention_type = payload.intervention_type
 
+    if not intervention_type and latest_diagnosis:
+        intervention_type = latest_diagnosis.get("intervention_type")
+
+    # Backward-compatible fallback for older history records.
     if not intervention_type:
+        diagnosis_correct = bool(
+            latest_diagnosis.get("correct")
+            if latest_diagnosis
+            else False
+        )
+
         policy = select_intervention(
-            is_correct=False if misconception else True,
+            is_correct=diagnosis_correct,
             confidence=state.confidence,
             misconception_detected=bool(misconception),
             misconception_confidence=0.85 if misconception else 0.0,
@@ -454,7 +491,6 @@ async def get_intervention(
 
         intervention_type = policy["type"]
 
-    # Normalize any legacy intervention names.
     intervention_type = normalize_intervention_type(intervention_type)
 
     # ---------------------------------------------------------
@@ -473,6 +509,17 @@ async def get_intervention(
             break
 
     # ---------------------------------------------------------
+    # Recover the actual diagnosis result.
+    # The intervention must use the diagnosis as its
+    # canonical source of truth.
+    # ---------------------------------------------------------
+    diagnosis_correct = (
+        bool(latest_diagnosis.get("correct"))
+        if latest_diagnosis is not None
+        else False
+    )
+
+    # ---------------------------------------------------------
     # Generate intervention content.
     # ---------------------------------------------------------
     content = None
@@ -485,7 +532,7 @@ async def get_intervention(
                 concept_description=concept.description or "",
                 intervention_type=intervention_type,
                 misconception=misconception,
-                is_correct=not bool(misconception),
+                is_correct=diagnosis_correct,
             )
             used_mock = False
 
@@ -499,18 +546,19 @@ async def get_intervention(
             concept_description=concept.description or "",
             intervention_type=intervention_type,
             misconception=misconception,
-            is_correct=not bool(misconception),
+            is_correct=diagnosis_correct,
         )
 
     # ---------------------------------------------------------
     # Explain why this intervention was selected.
     # ---------------------------------------------------------
+
     why = build_why_this_next(
-        is_correct=not bool(misconception),
-        confidence=state.confidence,
+        is_correct=diagnosis_correct,
+        confidence=diagnosis_confidence,
         misconception=misconception,
         intervention_type=intervention_type,
-        mastery=state.mastery,
+        mastery=diagnosis_mastery,
         misconception_confidence=misconception_confidence,
     )
 
@@ -815,6 +863,305 @@ async def reassess(
             and not precision_only
         )
 
+        # ---------------------------------------------------------
+    # Train / Validation / Test evaluator
+    # ---------------------------------------------------------
+    elif concept.id == "train_val_test":
+        # Correct understanding requires:
+        # 1. identifying the test set as unseen/final evaluation data
+        # 2. connecting it to generalisation or final performance
+        # 3. distinguishing it from training/validation usage
+
+        test_signal = (
+            "test" in answer_lower
+            and any(
+                phrase in answer_lower or phrase in reasoning_lower
+                for phrase in [
+                    "unseen",
+                    "unseen data",
+                    "final evaluation",
+                    "final evaluation data",
+                    "evaluate",
+                    "evaluation",
+                    "generalize",
+                    "generalise",
+                    "generalization",
+                    "generalisation",
+                ]
+            )
+        )
+
+        train_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "training set",
+                "training data",
+                "train set",
+                "train data",
+                "fit the model",
+                "learn the model",
+                "learn parameters",
+            ]
+        )
+
+        validation_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "validation set",
+                "validation data",
+                "validate",
+                "tune",
+                "tuning",
+                "hyperparameter",
+                "select the model",
+                "model selection",
+            ]
+        )
+
+        # A concise answer focused specifically on the test set
+        # should also pass if it clearly identifies its purpose.
+        test_purpose_signal = (
+            "test set" in answer_lower
+            and any(
+                phrase in answer_lower or phrase in reasoning_lower
+                for phrase in [
+                    "final",
+                    "unseen",
+                    "evaluation",
+                    "generalization",
+                    "generalisation",
+                    "performance",
+                ]
+            )
+        )
+
+        is_correct = (
+            (test_signal or test_purpose_signal)
+            and (
+                train_signal
+                or validation_signal
+                or "test set" in answer_lower
+            )
+        )
+
+    # ---------------------------------------------------------
+    # Regularization evaluator
+    # ---------------------------------------------------------
+    elif concept.id == "regularization":
+        # Correct understanding requires recognizing that L1
+        # regularization can drive coefficients exactly to zero,
+        # enabling feature selection.
+
+        l1_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "l1",
+                "lasso",
+                "absolute value",
+                "absolute-value",
+                "absolute penalty",
+            ]
+        )
+
+        zero_weight_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "zero",
+                "zeros",
+                "exactly zero",
+                "weights to zero",
+                "coefficients to zero",
+                "coefficients exactly zero",
+                "feature selection",
+                "remove features",
+                "removes features",
+                "irrelevant features",
+            ]
+        )
+
+        l2_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "l2",
+                "ridge",
+                "squared",
+                "squared penalty",
+                "squared magnitude",
+            ]
+        )
+
+        shrink_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "shrink",
+                "shrinks",
+                "shrinkage",
+                "toward zero",
+                "towards zero",
+            ]
+        )
+
+        is_correct = (
+            l1_signal
+            and zero_weight_signal
+            and (
+                l2_signal
+                or shrink_signal
+                or "feature selection" in answer_lower
+            )
+        )
+
+        # ---------------------------------------------------------
+    # Regularization evaluator
+    # ---------------------------------------------------------
+    elif concept.id == "regularization":
+        # Correct understanding requires recognizing that L1
+        # regularization (Lasso) can drive coefficients exactly
+        # to zero, enabling feature selection.
+        #
+        # The evaluator should accept semantically correct
+        # explanations even when the learner does not explicitly
+        # compare L1 with L2.
+
+        l1_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "l1",
+                "lasso",
+                "l1 regularization",
+                "l1 penalty",
+                "absolute value penalty",
+                "absolute-value penalty",
+                "absolute penalty",
+            ]
+        )
+
+        zero_weight_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "zero",
+                "zeros",
+                "exactly zero",
+                "weight to zero",
+                "weights to zero",
+                "coefficient to zero",
+                "coefficients to zero",
+                "coefficients exactly zero",
+                "feature selection",
+                "feature-select",
+                "feature selection",
+                "remove features",
+                "removes features",
+                "irrelevant features",
+            ]
+        )
+
+        l2_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "l2",
+                "ridge",
+                "l2 regularization",
+                "l2 penalty",
+                "squared penalty",
+                "squared magnitude",
+            ]
+        )
+
+        shrink_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "shrink",
+                "shrinks",
+                "shrinkage",
+                "toward zero",
+                "towards zero",
+            ]
+        )
+
+        # Primary criterion:
+        # L1/Lasso + exact-zero coefficients or feature selection.
+        l1_feature_selection = (
+            l1_signal
+            and zero_weight_signal
+        )
+
+        # Secondary comparison evidence is useful but not required.
+        # A learner can demonstrate the core concept without
+        # explicitly mentioning L2.
+        comparison_signal = (
+            l2_signal
+            or shrink_signal
+            or "feature selection" in answer_lower
+            or "feature selection" in reasoning_lower
+        )
+
+        is_correct = (
+            l1_feature_selection
+            and (
+                comparison_signal
+                or "feature selection" in answer_lower
+                or "feature selection" in reasoning_lower
+            )
+        )
+    elif concept.id == "gradient_descent":
+        # Correct understanding requires explaining that an
+        # excessively large learning rate can overshoot the
+        # minimum, causing oscillation or divergence.
+
+        learning_rate_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "learning rate",
+                "step size",
+                "step-size",
+            ]
+        )
+
+        overshoot_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "overshoot",
+                "overshoots",
+                "jump past",
+                "jump over",
+                "too far",
+                "large update",
+                "large updates",
+            ]
+        )
+
+        instability_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "oscillate",
+                "oscillation",
+                "diverge",
+                "divergence",
+                "does not converge",
+                "doesn't converge",
+                "fail to converge",
+                "unstable",
+            ]
+        )
+
+        minimum_signal = any(
+            phrase in answer_lower or phrase in reasoning_lower
+            for phrase in [
+                "minimum",
+                "local minimum",
+                "loss minimum",
+                "minimum of the loss",
+            ]
+        )
+
+        is_correct = (
+            learning_rate_signal
+            and overshoot_signal
+            and instability_signal
+            and minimum_signal
+        )
+
     # ---------------------------------------------------------
     # Generic fallback
     # ---------------------------------------------------------
@@ -944,7 +1291,7 @@ async def reassess(
     )
 
     if is_correct and previous_mastery < 0.5:
-        why += " The targeted intervention appears to have helped."
+        why += " The reassessment provides new evidence of improved understanding."
 
     # ---------------------------------------------------------
     # Progress summary

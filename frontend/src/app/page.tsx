@@ -109,6 +109,20 @@ function describeStep(step: TraceStep): string {
   }
 }
 
+function formatInterventionType(value?: string | null): string {
+  if (!value) return "Next step";
+
+  const labels: Record<string, string> = {
+    foundational_explanation: "Foundational Explanation",
+    targeted_misconception: "Targeted Misconception",
+    guided_example: "Guided Example",
+    reinforcement: "Reinforcement",
+    practice_challenge: "Practice Challenge",
+  };
+
+  return labels[value] ?? value.replaceAll("_", " ");
+}
+
 function SessionSteps({ current }: { current: Screen }) {
   const idx = STEPS.findIndex((s) => s.id === current);
 
@@ -155,6 +169,14 @@ export default function HomePage() {
   const [intervention, setIntervention] = useState<Intervention | null>(null);
   const [reassessResult, setReassessResult] =
     useState<ReassessResponse | null>(null);
+  
+  const learningPathStep = reassessResult
+  ? 5
+  : intervention
+  ? 4
+  : diagnosis
+  ? 3
+  : 1;
 
   const [answer, setAnswer] = useState("");
   const [reasoning, setReasoning] = useState("");
@@ -249,10 +271,7 @@ const sessionHydrated = useRef(false);
 useEffect(() => {
   if (!sessionHydrated.current) return;
 
-  if (!session) {
-    localStorage.removeItem("learnloop_active_session");
-    return;
-  }
+  if (!session) return;
 
   const snapshot = {
     screen,
@@ -289,6 +308,15 @@ useEffect(() => {
   demoScenario,
   learnerId,
 ]);
+
+  useEffect(() => {
+  if (screen === "dashboard") return;
+
+  window.scrollTo({
+    top: 0,
+    behavior: "instant",
+  });
+}, [screen]);
 
   async function refreshLearner(id?: string) {
     const target = id ?? learnerId;
@@ -435,6 +463,11 @@ useEffect(() => {
     }
   };
 
+  const returnToDashboard = () => {
+  setScreen("dashboard");
+  setView("overview");
+};
+
   const resetSession = () => {
     localStorage.removeItem("learnloop_active_session");
 
@@ -539,6 +572,22 @@ useEffect(() => {
   /* SESSION EXPERIENCE                                      */
   /* ====================================================== */
 
+   const previousMasteryPct = Math.round(
+    (reassessResult?.previous_mastery ?? 0) * 100
+  );
+  const newMasteryPct = Math.round((reassessResult?.new_mastery ?? 0) * 100);
+  const masteryDeltaPct = newMasteryPct - previousMasteryPct;
+
+  const reassessConfidence = reConfidence;
+
+const reassessCalibration = reassessResult?.is_correct
+  ? reassessConfidence < 0.4
+    ? "Underconfident"
+    : "Well calibrated"
+  : reassessConfidence >= 0.6
+  ? "Overconfident"
+  : "Well calibrated";
+
   if (screen !== "dashboard" && session) {
     return (
       <div className="min-h-screen session-shell">
@@ -553,7 +602,7 @@ useEffect(() => {
 
           <main className="w-full max-w-[1380px] mx-auto px-5 lg:px-8 xl:px-10 py-8">
           <button
-            onClick={resetSession}
+            onClick={returnToDashboard}
             className="text-xs font-bold text-[#77788b] hover:text-[#635bff] mb-6"
           >
             ← Back to learner dashboard
@@ -651,232 +700,446 @@ useEffect(() => {
                 Can the model perform beyond the data it memorized?
               </p>
 
-              <div className="relative mt-8 h-24">
-                <div className="absolute left-0 right-0 top-1/2 border-t border-[var(--border)]" />
+              <div className="relative mt-8 h-32">
+  {/* Baseline */}
+  <div className="absolute left-2 right-2 top-[55%] border-t border-[var(--border)]" />
 
-                <div className="absolute left-3 top-7 flex items-end gap-2">
-                  {[22, 34, 46, 61, 72].map((height, index) => (
-                    <span
-                      key={index}
-                      className="w-2 rounded-full bg-[color-mix(in_srgb,var(--primary)_70%,transparent)]"
-                      style={{ height }}
-                    />
-                  ))}
-                </div>
+  {/* Training / unseen divider */}
+  <div className="absolute top-2 bottom-7 left-1/2 border-l border-dashed border-[var(--border)]" />
 
-                <div className="absolute right-8 top-8 flex flex-col gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[var(--pink)]" />
-                  <span className="w-2 h-2 rounded-full bg-[color-mix(in_srgb,var(--pink)_60%,transparent)] ml-5" />
-                  <span className="w-2 h-2 rounded-full bg-[color-mix(in_srgb,var(--pink)_40%,transparent)] ml-2" />
-                </div>
+  <svg
+    viewBox="0 0 360 120"
+    className="absolute inset-x-0 top-0 h-24 w-full"
+    fill="none"
+    preserveAspectRatio="none"
+  >
+    {/* Same learned model across both regions */}
+    <path
+      d="M12 82
+         C32 76 43 84 58 69
+         C72 55 82 74 96 58
+         C111 40 124 67 139 49
+         C153 32 166 60 181 43
+         C196 25 210 54 225 37
+         C240 21 254 48 270 31
+         C287 18 302 35 318 27
+         C332 22 344 26 350 22"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      className="text-[var(--primary)]"
+    />
 
-                <div className="absolute left-1 bottom-0 text-[10px] uppercase tracking-[0.12em] font-bold text-[var(--text-muted)]">
-                  Training data
-                </div>
+    {/* Training observations — close to the learned curve */}
+    <g fill="currentColor" className="text-[var(--primary)]">
+      <circle cx="20" cy="79" r="3" />
+      <circle cx="38" cy="75" r="3" />
+      <circle cx="56" cy="70" r="3" />
+      <circle cx="76" cy="61" r="3" />
+      <circle cx="94" cy="58" r="3" />
+      <circle cx="113" cy="42" r="3" />
+      <circle cx="132" cy="54" r="3" />
+      <circle cx="151" cy="34" r="3" />
+      <circle cx="170" cy="58" r="3" />
+    </g>
 
-                <div className="absolute right-0 bottom-0 text-[10px] uppercase tracking-[0.12em] font-bold text-[var(--text-muted)]">
-                  Unseen data
-                </div>
-              </div>
+    {/* Unseen/test observations — noticeably farther from the same model */}
+    <g fill="currentColor" className="text-[var(--pink)]">
+      <circle cx="205" cy="64" r="3" />
+      <circle cx="230" cy="22" r="3" />
+      <circle cx="253" cy="67" r="3" />
+      <circle cx="277" cy="20" r="3" />
+      <circle cx="300" cy="57" r="3" />
+      <circle cx="325" cy="42" r="3" />
+      <circle cx="345" cy="54" r="3" />
+    </g>
+
+    {/* Generalization error on unseen data */}
+    <g
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeDasharray="3 3"
+      className="text-[var(--pink)] opacity-60"
+    >
+      <line x1="205" y1="64" x2="205" y2="40" />
+      <line x1="230" y1="22" x2="230" y2="35" />
+      <line x1="253" y1="67" x2="253" y2="32" />
+      <line x1="277" y1="20" x2="277" y2="29" />
+      <line x1="300" y1="57" x2="300" y2="30" />
+      <line x1="325" y1="42" x2="325" y2="27" />
+      <line x1="345" y1="54" x2="345" y2="24" />
+    </g>
+  </svg>
+
+  {/* Region labels */}
+  <div className="absolute left-1 bottom-0 text-[10px] uppercase tracking-[0.12em] font-bold text-[var(--text-muted)]">
+    Training data
+  </div>
+
+  <div className="absolute right-1 bottom-0 text-[10px] uppercase tracking-[0.12em] font-bold text-[var(--text-muted)]">
+    Unseen / test data
+  </div>
+</div>
             </div>
           )}
 
-          {/* BIAS VARIANCE */}
-          {session.concept.id === "bias_variance" && (
-            <div className="absolute inset-0 p-8 flex flex-col justify-center">
-              <p className="text-[11px] uppercase tracking-[0.15em] font-black text-[var(--primary)]">
-                Model complexity check
-              </p>
+          {/* BIAS-VARIANCE */}
+{session.concept.id === "bias_variance" && (
+  <div className="absolute inset-0 p-8 flex flex-col justify-center">
+    <p className="text-[11px] uppercase tracking-[0.15em] font-black text-[var(--primary)]">
+      Model complexity check
+    </p>
 
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                Think about underfitting, overfitting, and the tradeoff.
-              </p>
+    <p className="text-xs text-[var(--text-secondary)] mt-1">
+      Think about underfitting, overfitting, and the tradeoff.
+    </p>
 
-              <div className="mt-8 flex items-center gap-5">
-                <div className="flex-1">
-                  <p className="text-[10px] uppercase tracking-[0.12em] font-bold text-[var(--text-muted)] mb-2">
-                    High bias
-                  </p>
+    <div className="mt-7">
+      <svg
+        viewBox="0 0 520 180"
+        className="w-full h-[190px]"
+        fill="none"
+      >
+        {/* Axes */}
+        <line
+          x1="45"
+          y1="145"
+          x2="475"
+          y2="145"
+          stroke="currentColor"
+          strokeWidth="1"
+          className="text-[var(--border)]"
+        />
 
-                  <div className="h-16 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center">
-                    <div className="w-20 h-1 rounded-full bg-[var(--primary)] opacity-40" />
-                  </div>
-                </div>
+        {/* Bias — decreases */}
+        <path
+          d="M50 35 C125 45 190 70 255 91 C325 113 390 127 470 136"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          className="text-[var(--primary)]"
+        />
 
-                <div className="text-[var(--text-muted)] text-lg">
-                  →
-                </div>
+        {/* Variance — increases */}
+        <path
+          d="M50 136 C125 128 190 113 255 91 C325 67 395 44 470 27"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          className="text-[var(--pink)]"
+        />
 
-                <div className="flex-1">
-                  <p className="text-[10px] uppercase tracking-[0.12em] font-bold text-[var(--text-muted)] mb-2">
-                    High variance
-                  </p>
+        {/* Test error — U shaped */}
+        <path
+          d="M50 80 C125 65 195 70 255 94 C315 118 390 91 470 62"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          className="text-[var(--success)]"
+        />
 
-                  <div className="h-16 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center">
-                    <svg
-                      viewBox="0 0 90 45"
-                      className="w-20 h-12"
-                      fill="none"
-                    >
-                      <path
-                        d="M2 35 C12 8 22 40 32 13 C42 39 52 5 62 29 C72 9 78 35 88 12"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className="text-[var(--pink)]"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+        {/* Optimal complexity */}
+        <line
+          x1="255"
+          y1="25"
+          x2="255"
+          y2="145"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="5 5"
+          className="text-[var(--border-strong)]"
+        />
+
+        <circle
+          cx="255"
+          cy="94"
+          r="6"
+          fill="currentColor"
+          className="text-[var(--success)]"
+        />
+
+        {/* Labels */}
+        <text
+          x="65"
+          y="28"
+          fontSize="12"
+          fontWeight="800"
+          className="fill-[var(--primary)]"
+        >
+          BIAS ↓
+        </text>
+
+        <text
+          x="385"
+          y="25"
+          fontSize="12"
+          fontWeight="800"
+          className="fill-[var(--pink)]"
+        >
+          VARIANCE ↑
+        </text>
+
+        <text
+          x="220"
+          y="115"
+          fontSize="10"
+          fontWeight="800"
+          className="fill-[var(--success)]"
+        >
+          BEST TRADEOFF
+        </text>
+
+        <text
+          x="45"
+          y="168"
+          fontSize="10"
+          fontWeight="800"
+          className="fill-[var(--text-muted)]"
+        >
+          LOW COMPLEXITY
+        </text>
+
+        <text
+          x="385"
+          y="168"
+          fontSize="10"
+          fontWeight="800"
+          className="fill-[var(--text-muted)]"
+        >
+          HIGH COMPLEXITY
+        </text>
+      </svg>
+    </div>
+  </div>
+)}
 
           {/* TRAIN / VALIDATION / TEST */}
-            {session.concept.id === "train_val_test" && (
-            <div className="absolute inset-0 p-8 flex flex-col justify-center">
-              <p className="text-[11px] uppercase tracking-[0.15em] font-black text-[var(--primary)]">
-                Evaluation check
-              </p>
+{session.concept.id === "train_val_test" && (
+  <div className="absolute inset-0 p-8 flex flex-col justify-center">
+    <p className="text-[11px] uppercase tracking-[0.15em] font-black text-[var(--primary)]">
+      Evaluation check
+    </p>
 
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                Separate learning, tuning, and final evaluation.
-              </p>
+    <p className="text-xs text-[var(--text-secondary)] mt-1">
+      Separate learning, tuning, and final evaluation.
+    </p>
 
-              <div className="mt-9">
-                <div className="flex h-12 rounded-2xl overflow-hidden border border-[var(--border)]">
-                  <div className="w-[50%] bg-[color-mix(in_srgb,var(--primary)_15%,transparent)] flex items-center justify-center">
-                    <div>
-                      <p className="text-[11px] font-black text-[var(--primary)]">
-                        TRAIN
-                      </p>
-                      <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
-                        Learn
-                      </p>
-                    </div>
-                  </div>
+    <div className="mt-8">
+      <div className="flex items-center gap-2">
 
-                  <div className="w-[25%] bg-[color-mix(in_srgb,var(--violet)_15%,transparent)] flex items-center justify-center">
-                    <div>
-                      <p className="text-[11px] font-black text-[var(--violet)]">
-                        VAL
-                      </p>
-                      <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
-                        Tune
-                      </p>
-                    </div>
-                  </div>
+        {/* TRAIN */}
+        <div className="flex-1 h-[68px] rounded-2xl border border-[var(--primary-border)] bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] flex flex-col items-center justify-center">
+          <span className="text-[13px] font-black text-[var(--primary)]">
+            TRAIN
+          </span>
+          <span className="text-[10px] text-[var(--text-muted)] mt-1">
+            Learn
+          </span>
+        </div>
 
-                  <div className="w-[25%] bg-[color-mix(in_srgb,var(--success)_15%,transparent)] flex items-center justify-center">
-                    <div>
-                      <p className="text-[11px] font-black text-[var(--success)]">
-                        TEST
-                      </p>
-                      <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
-                        Verify
-                      </p>
-                    </div>
-                  </div>
-                </div>
+        <span className="text-xl font-bold text-[var(--text-muted)]">
+          →
+        </span>
 
-                <div className="flex justify-between mt-3 text-[10px] uppercase tracking-[0.12em] font-bold text-[var(--text-muted)]">
-                  <span>Learning</span>
-                  <span>Selection</span>
-                  <span>Generalization</span>
-                </div>
-              </div>
-            </div>
-          )}
+        {/* VALIDATION */}
+        <div className="flex-1 h-[68px] rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--violet)_10%,transparent)] flex flex-col items-center justify-center">
+          <span className="text-[13px] font-black text-[var(--violet)]">
+            VALIDATION
+          </span>
+          <span className="text-[10px] text-[var(--text-muted)] mt-1">
+            Tune / select
+          </span>
+        </div>
+
+        <span className="text-xl font-bold text-[var(--text-muted)]">
+          →
+        </span>
+
+        {/* TEST */}
+        <div className="flex-1 h-[68px] rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] flex flex-col items-center justify-center">
+          <span className="text-[13px] font-black text-[var(--success)]">
+            TEST
+          </span>
+          <span className="text-[10px] text-[var(--text-muted)] mt-1">
+            Verify
+          </span>
+        </div>
+
+      </div>
+
+      <div className="grid grid-cols-3 mt-4 text-[10px] uppercase tracking-[0.12em] font-black text-[var(--text-muted)]">
+        <span className="text-left">Learning</span>
+        <span className="text-center">Selection</span>
+        <span className="text-right">Generalization</span>
+      </div>
+    </div>
+  </div>
+)}
 
           {/* REGULARIZATION */}
-          {session.concept.id === "regularization" && (
-            <div className="absolute inset-0 p-8 flex flex-col justify-center">
-              <p className="text-[11px] uppercase tracking-[0.15em] font-black text-[var(--primary)]">
-                Complexity control check
-              </p>
+{session.concept.id === "regularization" && (
+  <div className="absolute inset-0 p-8 flex flex-col justify-center">
+    <p className="text-[11px] uppercase tracking-[0.15em] font-black text-[var(--primary)]">
+      Complexity control check
+    </p>
 
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                Think about how constraints affect model complexity.
-              </p>
+    <p className="text-xs text-[var(--text-secondary)] mt-1">
+      Think about how constraints affect model complexity.
+    </p>
 
-              <div className="mt-8 flex items-end justify-center gap-4 h-24">
-                {[70, 56, 42, 28].map((height, index) => (
-                  <div key={index} className="flex flex-col items-center gap-2">
-                    <div
-                      className={`w-8 rounded-t-lg ${
-                        index === 3
-                          ? "bg-[var(--primary)]"
-                          : "bg-[color-mix(in_srgb,var(--pink)_30%,transparent)]"
-                      }`}
-                      style={{ height }}
-                    />
+    <div className="mt-7 grid grid-cols-2 gap-5">
 
-                    <span className="text-[10px] uppercase tracking-[0.1em] font-bold text-[var(--text-muted)]">
-                      {index === 3 ? "λ" : ""}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      {/* L1 */}
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-black text-[var(--primary)]">
+            L1 · LASSO
+          </span>
+
+          <span className="text-[9px] uppercase tracking-[0.1em] font-bold text-[var(--text-muted)]">
+            Sparse
+          </span>
+        </div>
+
+        <div className="flex items-end gap-2 h-[58px] mt-3">
+          <span className="w-4 rounded-t bg-[var(--primary)] h-12" />
+          <span className="w-4 rounded-t bg-[var(--primary)] h-8" />
+          <span className="w-4 rounded-t bg-[var(--primary)] h-4" />
+          <span className="w-4 rounded-t bg-[var(--border-strong)] h-1.5" />
+          <span className="w-4 rounded-t bg-[var(--border-strong)] h-1.5" />
+        </div>
+
+        <p className="text-[10px] text-[var(--text-muted)] mt-2">
+          Some weights → 0
+        </p>
+      </div>
+
+      {/* L2 */}
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-black text-[var(--violet)]">
+            L2 · RIDGE
+          </span>
+
+          <span className="text-[9px] uppercase tracking-[0.1em] font-bold text-[var(--text-muted)]">
+            Shrink
+          </span>
+        </div>
+
+        <div className="flex items-end gap-2 h-[58px] mt-3">
+          <span className="w-4 rounded-t bg-[var(--violet)] h-12" />
+          <span className="w-4 rounded-t bg-[var(--violet)] h-9" />
+          <span className="w-4 rounded-t bg-[var(--violet)] h-7" />
+          <span className="w-4 rounded-t bg-[var(--violet)] h-5" />
+          <span className="w-4 rounded-t bg-[var(--violet)] h-3" />
+        </div>
+
+        <p className="text-[10px] text-[var(--text-muted)] mt-2">
+          Weights shrink
+        </p>
+      </div>
+
+    </div>
+
+    <div className="text-center mt-4 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--text-muted)]">
+      Penalize model complexity
+    </div>
+  </div>
+)}
 
           {/* GRADIENT DESCENT */}
-          {session.concept.id === "gradient_descent" && (
-            <div className="absolute inset-0 p-8 flex flex-col justify-center">
-              <p className="text-[11px] uppercase tracking-[0.15em] font-black text-[var(--primary)]">
-                Optimization check
-              </p>
+{session.concept.id === "gradient_descent" && (
+  <div className="absolute inset-0 p-8 flex flex-col justify-center">
+    <p className="text-[11px] uppercase tracking-[0.15em] font-black text-[var(--primary)]">
+      Optimization check
+    </p>
 
-              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                Think about how the model finds a lower-loss direction.
-              </p>
+    <p className="text-xs text-[var(--text-secondary)] mt-1">
+      Think about how the model finds a lower-loss direction.
+    </p>
 
-              <div className="relative mt-6 h-28">
-                <svg
-                  viewBox="0 0 300 120"
-                  className="w-full h-full"
-                  fill="none"
-                >
-                  <path
-                    d="M10 25 C65 25 72 95 145 95 C215 95 225 30 290 30"
-                    stroke="currentColor"
-                    strokeWidth="1"
-                    className="text-[var(--border)]"
-                  />
+    <div className="mt-6">
+      <svg
+        viewBox="0 0 520 190"
+        className="w-full h-[190px]"
+        fill="none"
+      >
+        {/* Loss landscape */}
+        <path
+          d="M35 45
+             C110 45 135 145 260 145
+             C385 145 410 45 485 45"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="text-[var(--border)]"
+        />
 
-                  <path
-                    d="M42 30 C65 40 73 70 105 87 C120 95 137 95 155 91"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    className="text-[var(--primary)]"
-                  />
+        {/* Descent trajectory */}
+        <path
+          d="M80 48
+             C120 62 135 100 170 124
+             C195 141 225 146 260 145"
+          stroke="currentColor"
+          strokeWidth="4"
+          strokeLinecap="round"
+          className="text-[var(--primary)]"
+        />
 
-                  <circle
-                    cx="42"
-                    cy="30"
-                    r="6"
-                    fill="currentColor"
-                    className="text-[var(--pink)]"
-                  />
+        {/* Starting point */}
+        <circle
+          cx="80"
+          cy="48"
+          r="7"
+          fill="currentColor"
+          className="text-[var(--pink)]"
+        />
 
-                  <circle
-                    cx="155"
-                    cy="91"
-                    r="6"
-                    fill="currentColor"
-                    className="text-[var(--primary)]"
-                  />
-                </svg>
+        {/* Intermediate step */}
+        <circle
+          cx="170"
+          cy="124"
+          r="6"
+          fill="currentColor"
+          className="text-[var(--primary)]"
+        />
 
-                <div className="absolute left-2 bottom-0 text-[10px] uppercase tracking-[0.12em] font-bold text-[var(--text-muted)]">
-                  Higher loss
-                </div>
+        {/* Minimum */}
+        <circle
+          cx="260"
+          cy="145"
+          r="7"
+          fill="currentColor"
+          className="text-[var(--success)]"
+        />
 
-                <div className="absolute right-3 bottom-0 text-[10px] uppercase tracking-[0.12em] font-bold text-[var(--text-muted)]">
-                  Lower loss
-                </div>
-              </div>
-            </div>
-          )}
+        <text
+          x="55"
+          y="28"
+          fontSize="11"
+          fontWeight="800"
+          className="fill-[var(--pink)]"
+        >
+          HIGH LOSS
+        </text>
+
+        <text
+          x="225"
+          y="172"
+          fontSize="11"
+          fontWeight="800"
+          className="fill-[var(--success)]"
+        >
+          MINIMUM
+        </text>
+      </svg>
+    </div>
+
+    <div className="flex justify-between text-[10px] uppercase tracking-[0.13em] font-black text-[var(--text-muted)] mt-[-2px]">
+      <span>Update parameters</span>
+      <span className="text-[var(--success)]">Reduce loss</span>
+    </div>
+  </div>
+)}
 
           {/* CLASSIFICATION METRICS */}
           {session.concept.id === "classification_metrics" && (
@@ -889,45 +1152,118 @@ useEffect(() => {
                 Choose the metric based on the cost of being wrong.
               </p>
 
-              <div className="mt-7 flex justify-center">
-                <div className="grid grid-cols-2 gap-px rounded-2xl overflow-hidden border border-[var(--border)]">
-                  <div className="w-24 h-12 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] flex flex-col items-center justify-center">
-                    <span className="text-[12px] font-black text-[var(--success)]">
-                      TP
-                    </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">
-                      caught
-                    </span>
-                  </div>
+              <div className="mt-7 flex flex-col items-center">
 
-                  <div className="w-24 h-12 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex flex-col items-center justify-center">
-                    <span className="text-[12px] font-black text-[var(--danger)]">
-                      FN
-                    </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">
-                      missed
-                    </span>
-                  </div>
+  {/* Confusion matrix */}
+  <div className="relative">
 
-                  <div className="w-24 h-12 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex flex-col items-center justify-center">
-                    <span className="text-[12px] font-black text-[var(--warning)]">
-                      FP
-                    </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">
-                      flagged
-                    </span>
-                  </div>
+    {/* Predicted label */}
+    <div className="text-center mb-2">
+      <span className="text-[9px] uppercase tracking-[0.14em] font-black text-[var(--text-muted)]">
+        Predicted
+      </span>
+    </div>
 
-                  <div className="w-24 h-12 bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] flex flex-col items-center justify-center">
-                    <span className="text-[12px] font-black text-[var(--primary)]">
-                      TN
-                    </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">
-                      cleared
-                    </span>
-                  </div>
-                </div>
-              </div>
+    <div className="flex items-center gap-3">
+
+      {/* Actual label */}
+      <div className="flex items-center justify-center w-4">
+        <span
+          className="text-[9px] uppercase tracking-[0.14em] font-black text-[var(--text-muted)]"
+          style={{
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
+          }}
+        >
+          Actual
+        </span>
+      </div>
+
+      <div>
+        {/* Column labels */}
+        <div className="grid grid-cols-2 mb-1">
+          <span className="text-[9px] text-center font-bold text-[var(--text-muted)]">
+            Positive
+          </span>
+          <span className="text-[9px] text-center font-bold text-[var(--text-muted)]">
+            Negative
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-px rounded-xl overflow-hidden border border-[var(--border)] shadow-sm">
+
+          {/* True Positive */}
+          <div className="w-28 h-14 bg-[color-mix(in_srgb,var(--success)_12%,transparent)] flex flex-col items-center justify-center">
+            <span className="text-sm font-black text-[var(--success)]">
+              TP
+            </span>
+            <span className="text-[9px] text-[var(--text-muted)]">
+              caught
+            </span>
+          </div>
+
+          {/* False Negative */}
+          <div className="w-28 h-14 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex flex-col items-center justify-center">
+            <span className="text-sm font-black text-[var(--danger)]">
+              FN
+            </span>
+            <span className="text-[9px] text-[var(--text-muted)]">
+              missed
+            </span>
+          </div>
+
+          {/* False Positive */}
+          <div className="w-28 h-14 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex flex-col items-center justify-center">
+            <span className="text-sm font-black text-[var(--warning)]">
+              FP
+            </span>
+            <span className="text-[9px] text-[var(--text-muted)]">
+              false alarm
+            </span>
+          </div>
+
+          {/* True Negative */}
+          <div className="w-28 h-14 bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] flex flex-col items-center justify-center">
+            <span className="text-sm font-black text-[var(--primary)]">
+              TN
+            </span>
+            <span className="text-[9px] text-[var(--text-muted)]">
+              cleared
+            </span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* What the metric cares about */}
+  <div className="mt-5 flex items-center gap-3">
+
+    <div className="px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--danger)_7%,transparent)] border border-[var(--border)]">
+      <p className="text-[9px] uppercase tracking-[0.12em] font-black text-[var(--danger)]">
+        Recall
+      </p>
+      <p className="text-[9px] text-[var(--text-muted)] mt-0.5">
+        avoid missed positives
+      </p>
+    </div>
+
+    <div className="text-[var(--text-muted)] text-sm font-bold">
+      vs.
+    </div>
+
+    <div className="px-3 py-2 rounded-xl bg-[color-mix(in_srgb,var(--warning)_7%,transparent)] border border-[var(--border)]">
+      <p className="text-[9px] uppercase tracking-[0.12em] font-black text-[var(--warning)]">
+        Precision
+      </p>
+      <p className="text-[9px] text-[var(--text-muted)] mt-0.5">
+        avoid false alarms
+      </p>
+    </div>
+
+  </div>
+</div>
             </div>
           )}
         </div>
@@ -1246,7 +1582,7 @@ useEffect(() => {
               : "Well calibrated";
 
             const headline = correct
-              ? "You've got the core idea."
+              ? "Your answer shows the core idea."
               : "LearnLoop found a gap to work on.";
 
             const subline = correct
@@ -1288,7 +1624,7 @@ useEffect(() => {
                                 <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-6">
                   <div className="contents">
                     {/* RESULT TILES */}
-                    <div className="order-1 lg:col-start-1 lg:row-start-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="order-1 lg:col-start-1 lg:row-start-1 grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
                       <div className="app-card p-5">
                         <p className="text-[11px] uppercase tracking-[0.13em] font-extrabold text-[var(--text-muted)]">
                           Result
@@ -1317,10 +1653,12 @@ useEffect(() => {
                         </p>
                         <p
                           className={`text-2xl font-extrabold mt-2 ${
-                            calibration === "Well calibrated"
-                              ? "text-[var(--success)]"
-                              : "text-[var(--warning)]"
-                          }`}
+  calibration === "Well calibrated"
+    ? "text-[var(--success)]"
+    : calibration === "Underconfident"
+    ? "text-[var(--primary)]"
+    : "text-[var(--warning)]"
+}`}
                         >
                           {calibration}
                         </p>
@@ -1381,7 +1719,7 @@ useEffect(() => {
                             }`}
                           >
                             {delta >= 0 ? "+" : ""}
-                            {Math.round(delta * 100)}%
+                            {Math.round(delta * 100)} pp
                           </span>
                         )}
                       </div>
@@ -1421,13 +1759,19 @@ useEffect(() => {
                     {steps.length > 0 && (
                       <div className="order-6 lg:col-span-2 lg:row-start-4 app-card p-6">
                         <p className="text-[11px] uppercase tracking-[0.15em] font-extrabold text-[var(--text-muted)]">
-                          How LearnLoop decided
+                          How LearnLoop chose your next step
                         </p>
 
                         <ol className="mt-5 space-y-5 border-l border-[var(--border)] ml-3">
                           {steps.map((step, i) => (
                             <li key={`${step.stage}-${i}`} className="relative pl-7">
-                              <span className="absolute -left-[7px] top-1 w-3.5 h-3.5 rounded-full bg-[var(--primary)] border-2 border-[var(--surface)]" />
+                              <span
+  className={`absolute -left-[7px] top-1 w-3.5 h-3.5 rounded-full border-2 border-[var(--surface)] ${
+    i === steps.length - 1
+      ? "bg-[var(--success)]"
+      : "bg-[var(--primary)]"
+  }`}
+/>
 
                               <p className="text-[13px] font-extrabold text-[var(--text)]">
                                 {STAGE_LABELS[step.stage] ?? step.stage}
@@ -1445,7 +1789,7 @@ useEffect(() => {
 
                   {/* RIGHT: decision + learner twin */}
                                     <div className="contents">
-                    <div className="order-3 lg:col-start-2 lg:row-start-1 lg:row-span-2 app-card relative overflow-hidden p-5">
+                    <div className="order-3 lg:col-start-2 lg:row-start-1 app-card relative overflow-hidden p-5 h-fit">
                       <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#635bff] via-[#8b5cf6] to-transparent" />
 
                       <p className="text-[11px] uppercase tracking-[0.15em] font-extrabold text-[var(--primary)]">
@@ -1461,10 +1805,10 @@ useEffect(() => {
                       </p>
 
                       {d.policy_rule && (
-                        <span className="inline-block mt-3 px-2.5 py-1 rounded-full bg-[var(--primary-soft)] border border-[var(--primary-border)] text-[11px] font-bold text-[var(--primary)] capitalize">
-                          Rule: {d.policy_rule.replaceAll("_", " ")}
-                        </span>
-                      )}
+  <span className="inline-block mt-3 px-2.5 py-1 rounded-full bg-[var(--primary-soft)] border border-[var(--primary-border)] text-[11px] font-bold text-[var(--primary)]">
+    Decision signal: {d.policy_rule.replaceAll("_", " ")}
+  </span>
+)}
 
                       <button
                         type="button"
@@ -1558,7 +1902,7 @@ useEffect(() => {
                             Strategy
                           </p>
                           <p className="text-sm font-extrabold text-[var(--text)] mt-0.5 capitalize">
-                            {intervention.intervention_type.replaceAll("_", " ")}
+                            {formatInterventionType(intervention.intervention_type)}
                           </p>
                         </div>
                       </li>
@@ -1596,7 +1940,7 @@ useEffect(() => {
                     </ol>
                   </div>
 
-                   <div className="app-card p-5 mt-auto">
+                   <div className="app-card p-5 mt-auto border-[var(--primary-border)]">
                     <p className="text-sm font-extrabold text-[var(--text)]">
                       Ready to test what changed?
                     </p>
@@ -1868,7 +2212,7 @@ useEffect(() => {
                   {reassessResult.progress_summary}
                 </p>
               </div>
-
+          
               {/* MASTERY TRANSITION */}
               <div className="app-card p-6 lg:p-8">
                 <div className="flex items-center justify-between">
@@ -1884,16 +2228,16 @@ useEffect(() => {
 
                   <div
                                         className={`px-3 py-1.5 rounded-full text-[12px] font-extrabold ${
-                      Math.round(reassessResult.mastery_delta * 100) > 0
+                      masteryDeltaPct > 0
                         ? "bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)]"
-                        : Math.round(reassessResult.mastery_delta * 100) === 0
+                        : masteryDeltaPct === 0
                         ? "bg-[var(--surface-muted)] text-[var(--text-secondary)]"
                         : "bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] text-[var(--warning)]"
                     }`}
                   >
-                    {Math.round(reassessResult.mastery_delta * 100) > 0
+                    {masteryDeltaPct > 0
                       ? "Progress registered"
-                      : Math.round(reassessResult.mastery_delta * 100) === 0
+                      : masteryDeltaPct === 0
                       ? "No change yet"
                       : "More practice needed"}
                   </div>
@@ -1903,7 +2247,7 @@ useEffect(() => {
                   {/* BEFORE */}
                   <div className="text-center">
                     <p className="text-3xl font-extrabold tracking-tight text-[var(--text-muted)]">
-                      {Math.round(reassessResult.previous_mastery * 100)}%
+                      {previousMasteryPct}%
                     </p>
 
                     <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)] font-extrabold mt-1">
@@ -1922,7 +2266,7 @@ useEffect(() => {
                   {/* AFTER */}
                   <div className="text-center">
                     <p className="text-4xl font-extrabold tracking-tight text-[var(--primary)]">
-                      {Math.round(reassessResult.new_mastery * 100)}%
+                      {newMasteryPct}%
                     </p>
 
                     <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)] font-extrabold mt-1">
@@ -1934,23 +2278,68 @@ useEffect(() => {
                   <div className="sm:pl-8 sm:border-l border-[var(--border)] text-center">
                     <p
                                             className={`text-2xl font-extrabold ${
-                        Math.round(reassessResult.mastery_delta * 100) > 0
+                        masteryDeltaPct > 0
                           ? "text-[var(--success)]"
-                          : Math.round(reassessResult.mastery_delta * 100) === 0
+                          : masteryDeltaPct === 0
                           ? "text-[var(--text-muted)]"
                           : "text-[var(--warning)]"
                       }`}
                     >
-                      {Math.round(reassessResult.mastery_delta * 100) > 0 ? "+" : ""}
-                      {Math.round(reassessResult.mastery_delta * 100)}%
+                      {masteryDeltaPct > 0 ? "+" : ""}
+{masteryDeltaPct} pp
                     </p>
 
                     <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)] font-extrabold mt-1">
-                      Change
+                      Percentage-point change
                     </p>
                   </div>
                 </div>
               </div>
+
+            {/* CALIBRATION */}
+<div className="app-card p-5">
+  <div className="flex items-center justify-between gap-4">
+    <div>
+      <p className="text-[12px] uppercase tracking-[0.14em] text-[var(--text-muted)] font-extrabold">
+        Confidence check
+      </p>
+
+      <p className="text-sm text-[var(--text-secondary)] mt-1">
+        How your confidence compared with your reassessment result
+      </p>
+    </div>
+
+    <span
+  className={`px-3 py-1.5 rounded-full text-[12px] font-extrabold ${
+    reassessCalibration === "Well calibrated"
+      ? "bg-[color-mix(in_srgb,var(--success)_12%,transparent)] text-[var(--success)]"
+      : "bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] text-[var(--warning)]"
+  }`}
+>
+      {reassessCalibration}
+    </span>
+  </div>
+
+  <div className="grid grid-cols-2 gap-4 mt-4">
+    <div className="rounded-xl bg-[var(--surface-soft)] border border-[var(--border)] p-4">
+      <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--text-muted)] font-extrabold">
+        Your confidence
+      </p>
+      <p className="text-xl font-extrabold text-[var(--text)] mt-1">
+        {Math.round(reassessConfidence * 100)}%
+      </p>
+    </div>
+
+    <div className="rounded-xl bg-[var(--surface-soft)] border border-[var(--border)] p-4">
+      <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--text-muted)] font-extrabold">
+        Reassessment
+      </p>
+      <p className="text-xl font-extrabold text-[var(--text)] mt-1">
+        {reassessResult.is_correct ? "Correct" : "Needs another try"}
+      </p>
+    </div>
+  </div>
+</div>
 
               {/* WHY THIS NEXT */}
               <WhyThisNext text={reassessResult.why_this_next} />
@@ -1984,12 +2373,14 @@ useEffect(() => {
 
                   <div className="mt-auto pt-6">
                     <button
-                      type="button"
-                      onClick={resetSession}
-                      className="bg-[var(--primary)] text-white shadow-[0_12px_28px_rgba(99,91,255,0.22)] hover:opacity-90 transition-all w-full px-7 py-3.5 rounded-xl text-sm font-extrabold"
-                    >
-                      Return to learner dashboard →
-                    </button>
+  type="button"
+  onClick={returnToDashboard}
+  className="bg-[var(--primary)] text-white shadow-[0_12px_28px_rgba(99,91,255,0.22)] hover:opacity-90 transition-all w-full px-7 py-3.5 rounded-xl text-sm font-extrabold"
+>
+  {reassessResult.is_correct
+    ? "Continue learning →"
+    : "Try another explanation →"}
+</button>
                   </div>
                 </div>
 
@@ -2258,93 +2649,97 @@ useEffect(() => {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
-                    <div className="w-9 h-9 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] flex items-center justify-center font-bold">
-                      01
-                    </div>
+  {[
+    {
+      step: 1,
+      title: "Diagnose",
+      description: "Establish what you currently know.",
+    },
+    {
+      step: 2,
+      title: "Detect",
+      description: "Identify misconceptions and confidence gaps.",
+    },
+    {
+      step: 3,
+      title: "Intervene",
+      description: "Select the next explanation or practice Adaptive strategy.",
+    },
+    {
+      step: 4,
+      title: "Reassess",
+      description: "Check what changed after the intervention.",
+    },
+    {
+      step: 5,
+      title: "Adapt",
+      description: "Update the learner model for what comes next.",
+    },
+  ].map((item) => {
+    const isCompleted = item.step < learningPathStep;
+    const isCurrent = item.step === learningPathStep;
 
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-extrabold text-[var(--text)]">
-                        Diagnose
-                      </p>
+    return (
+      <div
+        key={item.step}
+        className={`flex items-center gap-4 rounded-2xl border p-4 ${
+          isCurrent
+            ? "border-[var(--primary-border)] bg-[var(--primary-soft)]"
+            : isCompleted
+            ? "border-[var(--border)] bg-[var(--surface-soft)]"
+            : "border-[var(--border)] bg-[var(--surface-soft)] opacity-60"
+        }`}
+      >
+        <div
+          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+            isCurrent
+              ? "bg-[var(--primary)] text-white shadow-sm"
+              : isCompleted
+              ? "bg-[var(--primary-soft)] text-[var(--primary)]"
+              : "bg-[var(--surface)] border border-[var(--border)] text-[var(--text-muted)]"
+          }`}
+        >
+          {String(item.step).padStart(2, "0")}
+        </div>
 
-                      <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
-                        Establish what you currently know.
-                      </p>
-                    </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-extrabold text-[var(--text)]">
+            {item.title}
+          </p>
 
-                    <span className="text-[var(--success)] text-sm">✓</span>
-                  </div>
+          <p
+            className={`text-[13px] mt-0.5 ${
+              isCurrent
+                ? "text-[var(--text-secondary)]"
+                : "text-[var(--text-muted)]"
+            }`}
+          >
+            {item.description}
+          </p>
+        </div>
 
-                  <div className="flex items-center gap-4 rounded-2xl border border-[var(--primary-border)] bg-[var(--primary-soft)] p-4">
-                    <div className="w-9 h-9 rounded-xl bg-[var(--primary)] text-white flex items-center justify-center font-bold shadow-sm">
-                      02
-                    </div>
+        {isCompleted && (
+          <span className="text-[var(--success)] text-sm font-bold">
+            ✓
+          </span>
+        )}
 
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-extrabold text-[var(--text)]">
-                        Detect
-                      </p>
+        {isCurrent && (
+          <span className="px-2 py-1 rounded-full bg-[var(--surface)] text-[11px] font-bold text-[var(--primary)] border border-[var(--primary-border)]">
+            Current
+          </span>
+        )}
 
-                      <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
-                        Identify misconceptions and confidence gaps.
-                      </p>
-                    </div>
-
-                    <span className="px-2 py-1 rounded-full bg-[var(--surface)] text-[11px] font-bold text-[var(--primary)] border border-[var(--primary-border)]">
-                      Core
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
-                    <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text-muted)] flex items-center justify-center font-bold">
-                      03
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-extrabold text-[var(--text)]">
-                        Intervene
-                      </p>
-
-                      <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
-                        Select the next explanation or practice strategy.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
-                    <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text-muted)] flex items-center justify-center font-bold">
-                      04
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-extrabold text-[var(--text)]">
-                        Reassess
-                      </p>
-
-                      <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
-                        Check whether the intervention actually worked.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
-                    <div className="w-9 h-9 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[var(--text-muted)] flex items-center justify-center font-bold">
-                      05
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-extrabold text-[var(--text)]">
-                        Adapt
-                      </p>
-
-                      <p className="text-[13px] text-[var(--text-muted)] mt-0.5">
-                        Update the learner model for what comes next.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        {!isCompleted && !isCurrent && (
+          <span className="px-2 py-1 rounded-full bg-[var(--surface)] text-[11px] font-bold text-[var(--text-muted)] border border-[var(--border)]">
+            Locked
+          </span>
+        )}
+      </div>
+    );
+   })}
+</div>
+</div>
 
               {/* WHY THIS NEXT */}
               <div className="app-card p-6 relative overflow-hidden">
@@ -2352,27 +2747,27 @@ useEffect(() => {
 
                 <div className="relative">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] flex items-center justify-center">
-                      ✦
-                    </div>
+  <div className="w-8 h-8 rounded-xl bg-[var(--primary-soft)] text-[var(--primary)] flex items-center justify-center">
+    ✦
+  </div>
 
-                    <div>
-                      <p className="text-[12px] uppercase tracking-[0.15em] font-extrabold text-[var(--primary)]">
-                        Decision layer
-                      </p>
+  <div>
+    <p className="text-[12px] uppercase tracking-[0.15em] font-extrabold text-[var(--primary)]">
+      Your next step
+    </p>
 
-                      <h3 className="text-base font-extrabold text-[var(--text)] mt-0.5">
-                        Why this next?
-                      </h3>
-                    </div>
-                  </div>
+    <h3 className="text-base font-extrabold text-[var(--text)] mt-0.5">
+      Why this next?
+    </h3>
+  </div>
+</div>
 
                   <div className="mt-6">
                     <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                      LearnLoop does not follow a fixed lesson sequence. Each
-                      next step is selected from the learner state built from
-                      your evidence.
-                    </p>
+  LearnLoop does not follow a fixed lesson sequence. Your next
+  step changes based on what you know, where you're uncertain,
+  and the evidence from your latest attempt.
+</p>
 
                     <div className="mt-5 space-y-3">
                       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-3.5">
@@ -2597,318 +2992,535 @@ useEffect(() => {
   overfitting: {
     label: "GENERALIZATION",
     visual: (
-      <div className="relative h-[116px] overflow-hidden rounded-[18px] border border-[var(--primary-border)] bg-gradient-to-br from-[var(--primary-soft)] via-[var(--surface-soft)] to-[var(--surface)]">
-        <div className="absolute inset-x-5 top-1/2 border-t border-[var(--border)]" />
+  <div className="relative h-[116px] overflow-hidden rounded-[18px] border border-[var(--primary-border)] bg-gradient-to-br from-[var(--primary-soft)] via-[var(--surface-soft)] to-[var(--surface)]">
+    {/* Baseline */}
+    <div className="absolute left-5 right-5 top-[58%] border-t border-[var(--border)]" />
 
-        {/* Training curve */}
-        <svg
-          viewBox="0 0 260 100"
-          className="absolute inset-x-5 top-3 h-[82px] w-[calc(100%-40px)]"
-          fill="none"
+    {/* Train / test boundary */}
+    <div className="absolute top-4 bottom-8 left-1/2 border-l border-dashed border-[var(--border)]" />
+
+    <svg
+      viewBox="0 0 260 100"
+      className="absolute inset-x-5 top-3 h-[82px] w-[calc(100%-40px)]"
+      fill="none"
+    >
+      {/* Same overfit model applied across both regions */}
+      <path
+        d="M8 67
+           C22 58 30 72 43 59
+           C55 47 63 69 75 50
+           C88 30 98 63 111 43
+           C124 23 135 57 148 38
+           C162 19 174 54 187 34
+           C201 15 214 47 227 27
+           C238 19 246 30 252 23"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        className="text-[var(--primary)]"
+      />
+
+      {/* Training points — closely follow the learned curve */}
+      <g fill="currentColor" className="text-[var(--primary)]">
+        <circle cx="15" cy="63" r="3" />
+        <circle cx="28" cy="60" r="3" />
+        <circle cx="42" cy="61" r="3" />
+        <circle cx="55" cy="49" r="3" />
+        <circle cx="68" cy="62" r="3" />
+        <circle cx="82" cy="38" r="3" />
+        <circle cx="96" cy="58" r="3" />
+        <circle cx="109" cy="45" r="3" />
+        <circle cx="122" cy="27" r="3" />
+      </g>
+
+      {/* Unseen / test points — same model, noticeably worse fit */}
+      <g fill="currentColor" className="text-[var(--pink)]">
+        <circle cx="151" cy="54" r="3" />
+        <circle cx="166" cy="28" r="3" />
+        <circle cx="181" cy="61" r="3" />
+        <circle cx="196" cy="22" r="3" />
+        <circle cx="211" cy="55" r="3" />
+        <circle cx="227" cy="42" r="3" />
+        <circle cx="243" cy="51" r="3" />
+      </g>
+
+      {/* Error cues on unseen data */}
+      <g
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeDasharray="3 3"
+        className="text-[var(--pink)] opacity-60"
+      >
+        <line x1="151" y1="54" x2="151" y2="37" />
+        <line x1="181" y1="61" x2="181" y2="38" />
+        <line x1="211" y1="55" x2="211" y2="29" />
+        <line x1="243" y1="51" x2="243" y2="25" />
+      </g>
+    </svg>
+
+    {/* Region labels */}
+    <div className="absolute left-5 bottom-3 text-[10px] uppercase tracking-[0.14em] font-black text-[var(--text-muted)]">
+      Training data
+    </div>
+
+    <div className="absolute right-4 bottom-3 text-[10px] uppercase tracking-[0.14em] font-black text-[var(--text-muted)]">
+      Unseen / test data
+    </div>
+  </div>
+),
+  },
+
+    bias_variance: {
+  label: "BIAS · VARIANCE",
+  visual: (
+    <div className="relative h-[116px] overflow-hidden rounded-[18px] border border-[var(--primary-border)] bg-gradient-to-br from-[color-mix(in_srgb,var(--violet)_10%,transparent)] via-[var(--surface-soft)] to-[var(--surface)]">
+      <svg
+        viewBox="0 0 300 110"
+        className="absolute inset-x-4 top-1 h-[100px] w-[calc(100%-32px)]"
+        fill="none"
+      >
+        {/* Bias decreases with complexity */}
+        <path
+          d="M15 24 C65 30 105 43 145 58 C185 72 225 82 285 88"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          className="text-[var(--primary)]"
+        />
+
+        {/* Variance increases with complexity */}
+        <path
+          d="M15 88 C70 84 110 75 145 58 C185 40 230 25 285 15"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          className="text-[var(--pink)]"
+        />
+
+        {/* Test error / total error U-curve */}
+        <path
+          d="M15 48 C65 42 105 43 145 58 C185 73 225 53 285 35"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          className="text-[var(--success)]"
+        />
+
+        {/* Best tradeoff */}
+        <line
+          x1="145"
+          y1="25"
+          x2="145"
+          y2="88"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="4 4"
+          className="text-[var(--border-strong)]"
+        />
+
+        <circle
+          cx="145"
+          cy="58"
+          r="5"
+          fill="currentColor"
+          className="text-[var(--success)]"
+        />
+
+        <text
+          x="35"
+          y="20"
+          fontSize="8"
+          fontWeight="800"
+          className="fill-[var(--primary)]"
         >
-          <path
-            d="M8 72 C45 67 63 53 91 42 C123 29 150 20 181 13 C208 8 232 7 252 6"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            className="text-[var(--primary)]"
-          />
+          BIAS ↓
+        </text>
 
-          <path
-            d="M8 67 C38 61 57 76 82 55 C106 36 123 70 145 46 C168 23 187 61 208 35 C227 17 239 43 252 28"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeDasharray="5 5"
-            className="text-[var(--pink)]"
-          />
-
-          <circle
-            cx="8"
-            cy="72"
-            r="4"
-            fill="currentColor"
-            className="text-[var(--primary)]"
-          />
-
-          <circle
-            cx="252"
-            cy="6"
-            r="4"
-            fill="currentColor"
-            className="text-[var(--pink)]"
-          />
-        </svg>
-
-        <div className="absolute left-5 bottom-3 text-[10px] uppercase tracking-[0.14em] font-black text-[var(--text-muted)]">
-          Training fit
-        </div>
-
-        <div className="absolute right-5 bottom-3 text-[10px] uppercase tracking-[0.14em] font-black text-[var(--text-muted)]">
-          Unseen data
-        </div>
-      </div>
-    ),
-  },
-
-  bias_variance: {
-    label: "BIAS · VARIANCE",
-    visual: (
-      <div className="relative h-[116px] overflow-hidden rounded-[18px] border border-[var(--primary-border)] bg-gradient-to-br from-[color-mix(in_srgb,var(--violet)_10%,transparent)] via-[var(--surface-soft)] to-[var(--surface)]">
-        <svg
-          viewBox="0 0 300 110"
-          className="absolute inset-x-4 top-2 h-[88px] w-[calc(100%-32px)]"
-          fill="none"
+        <text
+          x="226"
+          y="18"
+          fontSize="8"
+          fontWeight="800"
+          className="fill-[var(--pink)]"
         >
-          {/* Bias */}
-          <path
-            d="M8 22 C42 27 68 39 91 55"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            className="text-[var(--primary)]"
-          />
+          VARIANCE ↑
+        </text>
 
-          {/* Total error */}
-          <path
-            d="M8 22 C42 15 77 18 109 35 C137 50 163 76 190 79 C220 81 252 66 292 22"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            className="text-[var(--pink)]"
-          />
+        <text
+          x="128"
+          y="76"
+          fontSize="7"
+          fontWeight="800"
+          className="fill-[var(--success)]"
+        >
+          BEST TRADEOFF
+        </text>
 
-          {/* Variance */}
-          <path
-            d="M205 79 C233 70 257 49 292 20"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            className="text-[var(--success)]"
-          />
+        <text
+          x="15"
+          y="103"
+          fontSize="8"
+          fontWeight="800"
+          className="fill-[var(--text-muted)]"
+        >
+          LOW COMPLEXITY
+        </text>
 
-          <circle
-            cx="190"
-            cy="79"
-            r="5"
-            fill="currentColor"
-            className="text-[var(--primary)]"
-          />
+        <text
+          x="218"
+          y="103"
+          fontSize="8"
+          fontWeight="800"
+          className="fill-[var(--text-muted)]"
+        >
+          HIGH COMPLEXITY
+        </text>
+      </svg>
+    </div>
+  ),
+},
 
-          <path
-            d="M190 79V91"
-            stroke="currentColor"
-            strokeWidth="1"
-            className="text-[var(--border-strong)]"
-          />
-        </svg>
+        train_val_test: {
+  label: "DATA PIPELINE",
+  visual: (
+    <div className="relative h-[116px] overflow-hidden rounded-[18px] border border-[var(--border)] bg-gradient-to-br from-[color-mix(in_srgb,var(--success)_10%,transparent)] via-[var(--surface-soft)] to-[var(--surface)] px-5 flex flex-col justify-center">
+      <div className="flex items-center gap-2">
 
-        <div className="absolute left-4 bottom-3 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--text-muted)]">
-          Underfit
+        <div className="flex-1 h-[52px] rounded-xl border border-[var(--primary-border)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] flex flex-col items-center justify-center">
+          <span className="text-[12px] font-black text-[var(--primary)]">
+            TRAIN
+          </span>
+          <span className="text-[9px] text-[var(--text-muted)]">
+            Fit model
+          </span>
         </div>
 
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-3 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--primary)]">
-          Balance
+        <span className="text-lg font-bold text-[var(--text-muted)]">
+          →
+        </span>
+
+        <div className="flex-1 h-[52px] rounded-xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--violet)_12%,transparent)] flex flex-col items-center justify-center">
+          <span className="text-[12px] font-black text-[var(--violet)]">
+            VALIDATION
+          </span>
+          <span className="text-[9px] text-[var(--text-muted)]">
+            Tune / select
+          </span>
         </div>
 
-        <div className="absolute right-4 bottom-3 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--text-muted)]">
-          Overfit
+        <span className="text-lg font-bold text-[var(--text-muted)]">
+          →
+        </span>
+
+        <div className="flex-1 h-[52px] rounded-xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)] flex flex-col items-center justify-center">
+          <span className="text-[12px] font-black text-[var(--success)]">
+            TEST
+          </span>
+          <span className="text-[9px] text-[var(--text-muted)]">
+            Final check
+          </span>
         </div>
+
       </div>
-    ),
-  },
 
-    train_val_test: {
-    label: "DATA PIPELINE",
-    visual: (
-      <div className="h-[116px] rounded-[18px] border border-[var(--border)] bg-gradient-to-br from-[color-mix(in_srgb,var(--success)_10%,transparent)] via-[var(--surface-soft)] to-[var(--surface)] flex flex-col justify-center px-5">
-        <div className="flex items-center gap-1">
-          <div className="flex-1 h-12 rounded-xl bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] border border-[var(--primary-border)] flex flex-col items-center justify-center">
-            <span className="text-[12px] font-black text-[var(--primary)]">
-              TRAIN
+      <div className="flex justify-between mt-3 px-1 text-[9px] uppercase tracking-[0.12em] font-black text-[var(--text-muted)]">
+        <span>Learn parameters</span>
+        <span>Choose settings</span>
+        <span>Measure generalization</span>
+      </div>
+    </div>
+  ),
+},
+
+    regularization: {
+  label: "COMPLEXITY CONTROL",
+  visual: (
+    <div className="relative h-[116px] overflow-hidden rounded-[18px] border border-[var(--border)] bg-gradient-to-br from-[color-mix(in_srgb,var(--pink)_10%,transparent)] via-[var(--surface-soft)] to-[var(--surface)] px-5 flex items-center justify-center">
+
+      <div className="grid grid-cols-2 gap-3 w-full max-w-[390px]">
+
+        {/* L1 */}
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black text-[var(--primary)]">
+              L1 · LASSO
             </span>
-
-            <span className="text-[10px] text-[var(--text-muted)] mt-1">
-              Learn
+            <span className="text-[9px] uppercase font-bold text-[var(--text-muted)]">
+              Sparse
             </span>
           </div>
 
-          <span className="text-[var(--text-muted)] px-1">→</span>
+          <div className="flex items-end gap-1.5 h-8 mt-2">
+            <span className="w-3 rounded-t bg-[var(--primary)] h-7" />
+            <span className="w-3 rounded-t bg-[var(--primary)] h-5" />
+            <span className="w-3 rounded-t bg-[var(--primary)] h-3" />
+            <span className="w-3 rounded-t bg-[var(--border-strong)] h-1.5" />
+            <span className="w-3 rounded-t bg-[var(--border-strong)] h-1.5" />
+          </div>
 
-          <div className="w-[27%] h-12 rounded-xl bg-[color-mix(in_srgb,var(--violet)_12%,transparent)] border border-[var(--border)] flex flex-col items-center justify-center">
-            <span className="text-[12px] font-black text-[var(--violet)]">
-              VAL
+          <p className="text-[9px] text-[var(--text-muted)] mt-1">
+            Some coefficients → 0
+          </p>
+        </div>
+
+        {/* L2 */}
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black text-[var(--violet)]">
+              L2 · RIDGE
             </span>
-
-            <span className="text-[10px] text-[var(--text-muted)] mt-1">
-              Tune
+            <span className="text-[9px] uppercase font-bold text-[var(--text-muted)]">
+              Shrink
             </span>
           </div>
 
-          <span className="text-[var(--text-muted)] px-1">→</span>
-
-          <div className="w-[27%] h-12 rounded-xl bg-[color-mix(in_srgb,var(--success)_12%,transparent)] border border-[var(--border)] flex flex-col items-center justify-center">
-            <span className="text-[12px] font-black text-[var(--success)]">
-              TEST
-            </span>
-
-            <span className="text-[10px] text-[var(--text-muted)] mt-1">
-              Verify
-            </span>
+          <div className="flex items-end gap-1.5 h-8 mt-2">
+            <span className="w-3 rounded-t bg-[var(--violet)] h-7" />
+            <span className="w-3 rounded-t bg-[var(--violet)] h-5" />
+            <span className="w-3 rounded-t bg-[var(--violet)] h-4" />
+            <span className="w-3 rounded-t bg-[var(--violet)] h-3" />
+            <span className="w-3 rounded-t bg-[var(--violet)] h-2" />
           </div>
+
+          <p className="text-[9px] text-[var(--text-muted)] mt-1">
+            Coefficients shrink
+          </p>
         </div>
 
-        <div className="flex justify-between mt-3 px-1 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--text-muted)]">
-          <span>Learning</span>
-          <span>Selection</span>
-          <span>Generalization</span>
-        </div>
       </div>
-    ),
-  },
 
-  regularization: {
-    label: "COMPLEXITY CONTROL",
-    visual: (
-      <div className="relative h-[116px] overflow-hidden rounded-[18px] border border-[var(--border)] bg-gradient-to-br from-[color-mix(in_srgb,var(--pink)_10%,transparent)] via-[var(--surface-soft)] to-[var(--surface)]">
-        <div className="absolute left-6 right-6 top-[50px] h-px bg-[var(--border)]" />
-
-        <div className="absolute left-7 bottom-[35px] flex items-end gap-3">
-          {[70, 58, 46, 34].map((height, index) => (
-            <div key={index} className="flex flex-col items-center">
-              <div
-                className={`w-7 rounded-t-lg ${
-                  index === 3
-                    ? "bg-[var(--primary)]"
-                    : "bg-[color-mix(in_srgb,var(--pink)_35%,transparent)]"
-                }`}
-                style={{ height }}
-              />
-            </div>
-          ))}
-        </div>
-
-        <div className="absolute right-7 top-7 flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-[var(--pink)]" />
-          <span className="w-2 h-2 rounded-full bg-[color-mix(in_srgb,var(--pink)_60%,transparent)]" />
-          <span className="w-1.5 h-1.5 rounded-full bg-[color-mix(in_srgb,var(--pink)_30%,transparent)]" />
-        </div>
-
-        <div className="absolute left-5 bottom-3 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--text-muted)]">
-          Complexity
-        </div>
-
-        <div className="absolute right-5 bottom-3 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--primary)]">
-          Regularize
-        </div>
+      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] uppercase tracking-[0.13em] font-black text-[var(--text-muted)] whitespace-nowrap">
+        Penalize model complexity
       </div>
-    ),
-  },
+    </div>
+  ),
+},
 
   gradient_descent: {
-    label: "OPTIMIZATION",
-    visual: (
-      <div className="relative h-[116px] overflow-hidden rounded-[18px] border border-[var(--primary-border)] bg-gradient-to-br from-[var(--primary-soft)] via-[var(--surface-soft)] to-[var(--surface)]">
-        <svg
-          viewBox="0 0 300 115"
-          className="absolute inset-x-4 top-1 h-[100px] w-[calc(100%-32px)]"
-          fill="none"
+  label: "OPTIMIZATION",
+  visual: (
+    <div className="relative h-[116px] overflow-hidden rounded-[18px] border border-[var(--primary-border)] bg-gradient-to-br from-[var(--primary-soft)] via-[var(--surface-soft)] to-[var(--surface)]">
+      <svg
+        viewBox="0 0 300 115"
+        className="absolute inset-x-4 top-1 h-[100px] w-[calc(100%-32px)]"
+        fill="none"
+      >
+        {/* Loss landscape */}
+        <path
+          d="M8 25 C45 27 72 84 108 96 C143 108 177 99 205 72 C232 47 254 27 292 27"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          className="text-[var(--border-strong)]"
+        />
+
+        {/* Gradient descent trajectory */}
+        <path
+          d="M34 29 C55 37 68 54 84 69 C99 82 113 91 132 96"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          className="text-[var(--primary)]"
+        />
+
+        {/* Step 1 — high loss */}
+        <circle
+          cx="34"
+          cy="29"
+          r="5"
+          fill="currentColor"
+          className="text-[var(--pink)]"
+        />
+
+        {/* Step 2 */}
+        <circle
+          cx="84"
+          cy="69"
+          r="4"
+          fill="currentColor"
+          className="text-[var(--primary)]"
+        />
+
+        {/* Step 3 */}
+        <circle
+          cx="108"
+          cy="88"
+          r="3.5"
+          fill="currentColor"
+          className="text-[var(--primary)]"
+        />
+
+        {/* Minimum */}
+        <circle
+          cx="132"
+          cy="96"
+          r="5"
+          fill="currentColor"
+          className="text-[var(--success)]"
+        />
+
+        {/* Small update arrows */}
+        <path
+          d="M51 39 L57 43"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          className="text-[var(--primary)]"
+        />
+
+        <path
+          d="M91 75 L96 79"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          className="text-[var(--primary)]"
+        />
+
+        {/* Minimum marker */}
+        <line
+          x1="132"
+          y1="96"
+          x2="132"
+          y2="104"
+          stroke="currentColor"
+          strokeWidth="1"
+          className="text-[var(--success)]"
+        />
+
+        <text
+          x="25"
+          y="17"
+          fontSize="8"
+          fontWeight="800"
+          letterSpacing="0.8"
+          fill="currentColor"
+          className="text-[var(--pink)]"
         >
-          {/* Loss landscape */}
-          <path
-            d="M5 25 C55 25 62 98 150 98 C235 98 245 30 295 30"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            className="text-[var(--border-strong)]"
-          />
+          HIGH LOSS
+        </text>
 
-          {/* Descent path */}
-          <path
-            d="M35 30 C63 40 76 71 108 87 C125 96 145 99 162 94"
-            stroke="currentColor"
-            strokeWidth="3"
-            className="text-[var(--primary)]"
-          />
+        <text
+          x="111"
+          y="88"
+          fontSize="8"
+          fontWeight="800"
+          letterSpacing="0.8"
+          fill="currentColor"
+          className="text-[var(--success)]"
+        >
+          MINIMUM
+        </text>
+      </svg>
 
-          <circle
-            cx="35"
-            cy="30"
-            r="5"
-            fill="currentColor"
-            className="text-[var(--pink)]"
-          />
-
-          <circle
-            cx="108"
-            cy="87"
-            r="4"
-            fill="currentColor"
-            className="text-[var(--primary)]"
-          />
-
-          <circle
-            cx="162"
-            cy="94"
-            r="5"
-            fill="currentColor"
-            className="text-[var(--success)]"
-          />
-        </svg>
-
-        <div className="absolute left-5 bottom-3 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--text-muted)]">
-          Higher loss
-        </div>
-
-        <div className="absolute right-5 bottom-3 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--success)]">
-          Lower loss
-        </div>
+      <div className="absolute left-5 bottom-3 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--text-muted)]">
+        Update parameters
       </div>
-    ),
-  },
+
+      <div className="absolute right-5 bottom-3 text-[10px] uppercase tracking-[0.13em] font-black text-[var(--success)]">
+        Reduce loss
+      </div>
+    </div>
+  ),
+},
 
   classification_metrics: {
-    label: "CONFUSION MATRIX",
-    visual: (
-      <div className="h-[116px] rounded-[18px] border border-[var(--border)] bg-gradient-to-br from-[color-mix(in_srgb,var(--success)_10%,transparent)] via-[var(--surface-soft)] to-[var(--surface)] flex items-center justify-center">
-        <div className="grid grid-cols-2 gap-px rounded-xl overflow-hidden border border-[var(--border)] shadow-sm">
-          <div className="w-20 h-10 bg-[color-mix(in_srgb,var(--success)_12%,transparent)] flex flex-col items-center justify-center">
-            <span className="text-[12px] font-black text-[var(--success)]">
-              TP
-            </span>
+  label: "CONFUSION MATRIX",
+  visual: (
+    <div className="relative h-[116px] overflow-hidden rounded-[18px] border border-[var(--border)] bg-gradient-to-br from-[color-mix(in_srgb,var(--success)_8%,transparent)] via-[var(--surface-soft)] to-[var(--surface)]">
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative w-[230px] h-[92px]">
 
-            <span className="text-[10px] text-[var(--text-muted)]">
-              caught
+          {/* Predicted axis */}
+          <div className="absolute top-0 left-[76px] right-0 text-center">
+            <span className="text-[8px] uppercase tracking-[0.12em] font-black text-[var(--text-muted)]">
+              Predicted
             </span>
           </div>
 
-          <div className="w-20 h-10 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex flex-col items-center justify-center">
-            <span className="text-[12px] font-black text-[var(--danger)]">
-              FN
-            </span>
-
-            <span className="text-[10px] text-[var(--text-muted)]">
-              missed
-            </span>
-          </div>
-
-          <div className="w-20 h-10 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex flex-col items-center justify-center">
-            <span className="text-[12px] font-black text-[var(--warning)]">
-              FP
-            </span>
-
-            <span className="text-[10px] text-[var(--text-muted)]">
-              flagged
+          {/* Actual axis */}
+          <div className="absolute left-0 top-[31px] bottom-0 flex items-center">
+            <span
+              className="text-[8px] uppercase tracking-[0.12em] font-black text-[var(--text-muted)]"
+              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+            >
+              Actual
             </span>
           </div>
 
-          <div className="w-20 h-10 bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] flex flex-col items-center justify-center">
-            <span className="text-[12px] font-black text-[var(--primary)]">
-              TN
+          {/* Column labels */}
+          <div className="absolute left-[62px] top-[16px] w-[78px] text-center">
+            <span className="text-[8px] font-bold text-[var(--text-muted)]">
+              Positive
             </span>
+          </div>
 
-            <span className="text-[10px] text-[var(--text-muted)]">
-              cleared
+          <div className="absolute left-[140px] top-[16px] w-[78px] text-center">
+            <span className="text-[8px] font-bold text-[var(--text-muted)]">
+              Negative
             </span>
+          </div>
+
+          {/* Row labels */}
+          <div className="absolute left-[17px] top-[39px] w-[42px] text-right">
+            <span className="text-[8px] font-bold text-[var(--text-muted)]">
+              Positive
+            </span>
+          </div>
+
+          <div className="absolute left-[17px] top-[68px] w-[42px] text-right">
+            <span className="text-[8px] font-bold text-[var(--text-muted)]">
+              Negative
+            </span>
+          </div>
+
+          {/* Matrix */}
+          <div className="absolute left-[62px] top-[34px] grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-[var(--border)] shadow-sm">
+
+            {/* TP */}
+            <div className="w-[78px] h-[28px] bg-[color-mix(in_srgb,var(--success)_14%,transparent)] flex items-center justify-center gap-1">
+              <span className="text-[9px] font-black text-[var(--success)]">
+                TP
+              </span>
+              <span className="text-[7px] font-bold text-[var(--text-muted)]">
+                caught
+              </span>
+            </div>
+
+            {/* FN */}
+            <div className="w-[78px] h-[28px] bg-[color-mix(in_srgb,var(--pink)_10%,transparent)] flex items-center justify-center gap-1">
+              <span className="text-[9px] font-black text-[var(--pink)]">
+                FN
+              </span>
+              <span className="text-[7px] font-bold text-[var(--text-muted)]">
+                missed
+              </span>
+            </div>
+
+            {/* FP */}
+            <div className="w-[78px] h-[28px] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] flex items-center justify-center gap-1">
+              <span className="text-[9px] font-black text-[var(--warning)]">
+                FP
+              </span>
+              <span className="text-[7px] font-bold text-[var(--text-muted)]">
+                false alarm
+              </span>
+            </div>
+
+            {/* TN */}
+            <div className="w-[78px] h-[28px] bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] flex items-center justify-center gap-1">
+              <span className="text-[9px] font-black text-[var(--primary)]">
+                TN
+              </span>
+              <span className="text-[7px] font-bold text-[var(--text-muted)]">
+                cleared
+              </span>
+            </div>
+
           </div>
         </div>
       </div>
-    ),
-  },
+    </div>
+  ),
+},
 };
 
             const meta = visualMap[concept.id] ?? {
@@ -3186,8 +3798,12 @@ useEffect(() => {
 
                     <footer className="border-t border-[var(--border)] mt-10 pt-7 pb-9 text-center">
             <p className="text-[13px] font-semibold tracking-[0.01em] text-[var(--text-secondary)]">
-              LearnLoop AI · RudraCore · Build Fast with AI 2026 · PS-03
-            </p>
+  © 2026 LearnLoop AI ·{" "}
+  <span className="text-[var(--primary)]">
+    An original project by RudraCore
+  </span>{" "}
+  · All rights reserved
+</p>
 
             <p className="text-[12px] text-[var(--text-muted)] mt-2">
               Most tutors know the subject. LearnLoop learns the learner.

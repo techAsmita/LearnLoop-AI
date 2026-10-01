@@ -645,20 +645,30 @@ def mock_generate_reassessment_feedback(
     misconception_persisted: bool = False,
 ) -> str:
     delta = new_mastery - previous_mastery
+
     if misconception_persisted:
         return (
-            f"Misconception appears to persist. Mastery moved "
-            f"{previous_mastery:.0%} → {new_mastery:.0%}. "
-            "Next step will use a different intervention strategy."
+            f"Reassessment shows the misconception is still present. "
+            f"Mastery moved {previous_mastery:.0%} → {new_mastery:.0%} "
+            f"({delta:+.0%} percentage points). "
+            "The next step will use a different intervention strategy."
         )
+
     if is_correct and delta > 0:
         return (
-            f"Improvement registered. Mastery {previous_mastery:.0%} → {new_mastery:.0%} "
-            f"({delta:+.0%}). The targeted practice is paying off."
+            f"Reassessment shows improved mastery: "
+            f"{previous_mastery:.0%} → {new_mastery:.0%} "
+            f"({delta:+.0%} percentage points)."
         )
+
     if is_correct:
-        return "Correct again. Understanding looks stable."
+        return (
+            f"Reassessment confirms the concept is stable at "
+            f"{new_mastery:.0%} mastery."
+        )
+
     return (
-        f"Still gaps. Mastery is now {new_mastery:.0%}. "
-        "We can revisit with a different angle."
+        f"Reassessment did not demonstrate mastery yet. "
+        f"Mastery is now {new_mastery:.0%}. "
+        "The learner model will use this evidence to choose the next step."
     )

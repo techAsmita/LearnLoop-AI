@@ -103,6 +103,29 @@ def select_intervention(
             ),
         }
 
+        # Incorrect + high confidence → overconfidence signal
+    if not is_correct and confidence >= 0.7:
+        return {
+            "type": TARGETED_MISCONCEPTION,
+            "policy_rule": "overconfidence_detected",
+            "reason": (
+                f"Incorrect answer with high confidence ({confidence:.0%}). "
+                "The learner may be overestimating their understanding, "
+                "so the next step should directly test and correct the underlying concept."
+            ),
+        }
+
+    # Correct + low confidence → underconfidence signal
+    if is_correct and confidence <= 0.3:
+        return {
+            "type": REINFORCEMENT,
+            "policy_rule": "underconfidence_detected",
+            "reason": (
+                f"Correct answer with low confidence ({confidence:.0%}). "
+                "The concept appears understood, but confidence is lagging behind performance."
+            ),
+        }
+
     # High-confidence wrong + strong misconception signal
     if (
         not is_correct
