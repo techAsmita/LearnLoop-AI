@@ -436,6 +436,8 @@ useEffect(() => {
   };
 
   const resetSession = () => {
+    localStorage.removeItem("learnloop_active_session");
+
     setScreen("dashboard");
     setSession(null);
     setDiagnosis(null);
@@ -444,8 +446,12 @@ useEffect(() => {
 
     setAnswer("");
     setReasoning("");
+    setConfidence(0.5);
+
     setReAnswer("");
     setReReasoning("");
+    setReConfidence(0.5);
+
     setDemoScenario("");
     setError(null);
 
