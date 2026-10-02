@@ -9,6 +9,7 @@
 [🌐 Live Demo](https://learnloop-ai-eight.vercel.app) ·
 [💻 GitHub](https://github.com/techAsmita/LearnLoop-AI) ·
 [⚙️ Backend API](https://learnloop-ai-vp36.onrender.com) ·
+[📹 Demo Video] (https://drive.google.com/file/d/1sZZyDVhdxzcx3bDYxtMVuGXhfAvwkCE8/view?usp=sharing)
 
 ![LearnLoop AI — Light Theme](screenshots/learnloop-light-theme-hero.png)
 
@@ -23,7 +24,7 @@
 | 🌐 **Live Demo** | https://learnloop-ai-eight.vercel.app |
 | 💻 **GitHub Repository** | https://github.com/techAsmita/LearnLoop-AI |
 | ⚙️ **Backend API** | https://learnloop-ai-vp36.onrender.com |
-| 🎥 **Demo Video** | Coming soon |
+| 🎥 **Demo Video** | https://drive.google.com/file/d/1sZZyDVhdxzcx3bDYxtMVuGXhfAvwkCE8/view?usp=sharing |
 | 📑 **Project Presentation** | https://drive.google.com/file/d/10Q6iRQ2Bg8ixb7gIx6Qt2HMKopdtlH9n/view?usp=sharing |
 
 ### Recommended demo path
@@ -682,7 +683,7 @@ LearnLoop's current implementation focuses on the core adaptive learning loop. P
 | Runnable project | ✅ |
 | GitHub repository | ✅ |
 | Deployment | ✅ |
-| 3-minute demo video | 🔄 |
+| 3-minute demo video | ✅ |
 | Project PPT (max 10 slides) | ✅ |
 | AI tools disclosure | ✅ |
 
