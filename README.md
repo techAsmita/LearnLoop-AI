@@ -24,7 +24,7 @@
 | 💻 **GitHub Repository** | https://github.com/techAsmita/LearnLoop-AI |
 | ⚙️ **Backend API** | https://learnloop-ai-vp36.onrender.com |
 | 🎥 **Demo Video** | Coming soon |
-| 📑 **Project Presentation** | Coming soon |
+| 📑 **Project Presentation** | https://drive.google.com/file/d/10Q6iRQ2Bg8ixb7gIx6Qt2HMKopdtlH9n/view?usp=sharing |
 
 ### Recommended demo path
 
@@ -646,6 +646,18 @@ Because the central product claim is not *"The AI can explain AI."* It is:
 > "The AI changes what it teaches based on what it learns about the learner."
 
 ---
+
+## 🔮 Future Improvements
+
+LearnLoop's current implementation focuses on the core adaptive learning loop. Potential next steps include:
+
+- **Richer learner modeling** — incorporate long-term learning patterns, response-time signals, and concept dependencies.
+- **Expanded evaluation** — evaluate adaptation with larger controlled datasets and eventually real learner studies.
+- **Adaptive coding practice** — add executable coding exercises whose difficulty changes with learner performance.
+- **Knowledge graph integration** — model prerequisite relationships between AI/ML concepts.
+- **Multimodal tutoring** — support diagrams, visual explanations, and eventually voice-based interaction.
+- **Teacher / mentor analytics** — provide aggregated insights into learner progress and recurring misconceptions.
+- **Long-term personalization** — adapt learning paths across multiple sessions and concepts rather than a single learning cycle.
 
 ## 👥 Team RudraCore
 
