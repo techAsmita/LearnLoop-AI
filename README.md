@@ -130,6 +130,8 @@ A useful AI tutor needs to understand **the learner**, not just the subject.
 
 LearnLoop maintains an explicit **learner model** and continuously adapts the learning path based on evidence from the learner. Two learners answering the same question can receive different interventions because their learner states are different.
 
+Why we built LearnLoop: We wanted to move beyond generic AI tutoring by making the learner's evolving understanding—not just the subject matter—the input that determines what the tutor teaches next.
+
 ---
 
 ## 🏗️ System Architecture
