@@ -9,7 +9,6 @@
 [🌐 Live Demo](https://learnloop-ai-eight.vercel.app) ·
 [💻 GitHub](https://github.com/techAsmita/LearnLoop-AI) ·
 [⚙️ Backend API](https://learnloop-ai-vp36.onrender.com) ·
-[📚 Swagger API Docs](https://learnloop-ai-vp36.onrender.com/docs)
 
 ![LearnLoop AI — Light Theme](screenshots/learnloop-light-theme-hero.png)
 
@@ -24,7 +23,6 @@
 | 🌐 **Live Demo** | https://learnloop-ai-eight.vercel.app |
 | 💻 **GitHub Repository** | https://github.com/techAsmita/LearnLoop-AI |
 | ⚙️ **Backend API** | https://learnloop-ai-vp36.onrender.com |
-| 📚 **Interactive API Docs** | https://learnloop-ai-vp36.onrender.com/docs |
 | 🎥 **Demo Video** | Coming soon |
 | 📑 **Project Presentation** | Coming soon |
 
