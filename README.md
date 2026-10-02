@@ -9,7 +9,7 @@
 [🌐 Live Demo](https://learnloop-ai-eight.vercel.app) ·
 [💻 GitHub](https://github.com/techAsmita/LearnLoop-AI) ·
 [⚙️ Backend API](https://learnloop-ai-vp36.onrender.com) ·
-[📹 Demo Video] (https://drive.google.com/file/d/1sZZyDVhdxzcx3bDYxtMVuGXhfAvwkCE8/view?usp=sharing) ·
+[📹 Demo Video](https://drive.google.com/file/d/1sZZyDVhdxzcx3bDYxtMVuGXhfAvwkCE8/view?usp=sharing) ·
 
 ![LearnLoop AI — Light Theme](screenshots/learnloop-light-theme-hero.png)
 
