@@ -37,6 +37,9 @@ from ..services.evaluation import (
 
 router = APIRouter(prefix="/api")
 
+def clean_misconceptions(values):
+    return [v for v in (values or []) if isinstance(v, str) and v.strip()]
+
 
 # ---------- Health ----------
 @router.get("/health")
@@ -90,7 +93,15 @@ def get_learner_state(learner_id: str, db: Session = Depends(get_db)):
         learner_id=learner.id,
         name=learner.name,
         goal=learner.goal,
-        concept_states=[LearnerConceptStateOut.model_validate(s) for s in states],
+        concept_states=[
+    LearnerConceptStateOut.model_validate({
+        **s.__dict__,
+        "active_misconceptions": clean_misconceptions(
+            s.active_misconceptions
+        ),
+    })
+    for s in states
+],
     )
 
 
@@ -123,7 +134,15 @@ def get_progress(learner_id: str, db: Session = Depends(get_db)):
         learner_id=learner_id,
         total_concepts_attempted=len(states),
         average_mastery=round(avg, 3),
-        concept_states=[LearnerConceptStateOut.model_validate(s) for s in states],
+        concept_states=[
+    LearnerConceptStateOut.model_validate({
+        **s.__dict__,
+        "active_misconceptions": clean_misconceptions(
+            s.active_misconceptions
+        ),
+    })
+    for s in states
+],
         recent_interventions=recent,
     )
 
@@ -375,7 +394,12 @@ async def diagnose(payload: DiagnoseRequest, db: Session = Depends(get_db)):
 
     return DiagnoseResponse(
         diagnosis=diagnosis,
-        updated_state=LearnerConceptStateOut.model_validate(state),
+        updated_state=LearnerConceptStateOut.model_validate({
+    **state.__dict__,
+    "active_misconceptions": clean_misconceptions(
+        state.active_misconceptions
+    ),
+}),
         why_this_next=why,
     )
 
@@ -1310,10 +1334,17 @@ async def reassess(
         previous_mastery=previous_mastery,
         new_mastery=new_mastery,
         mastery_delta=round(delta, 3),
-        active_misconceptions=state.active_misconceptions or [],
+        active_misconceptions=clean_misconceptions(
+    state.active_misconceptions
+) or [],
         next_action=next_action,
         why_this_next=why,
-        updated_state=LearnerConceptStateOut.model_validate(state),
+        updated_state=LearnerConceptStateOut.model_validate({
+    **state.__dict__,
+    "active_misconceptions": clean_misconceptions(
+        state.active_misconceptions
+    ),
+}),
         progress_summary=progress_summary,
     )
 
